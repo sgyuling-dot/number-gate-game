@@ -359,26 +359,49 @@ function applyGate(side) {
 }
 
 // ══════════════════════════════════════════════
-//  SPAWN ENEMIES
+//  SPAWN ENEMIES at a world scroll position
 // ══════════════════════════════════════════════
-function spawnEnemies(count) {
-  state.enemies = [];
+function spawnEnemiesAtScroll(count, scrollPos) {
+  // Enemies are stored with a worldOffset relative to their spawn scrollPos
+  // Their screen Y = rowScreenY(scrollPos) + grid offsets, scrolling with the world
   const cols = Math.ceil(Math.sqrt(count * 1.6));
-  const spacingX = 38;
-  const spacingY = 36;
-  const startX = W / 2 - (cols - 1) * spacingX / 2;
-  const startY = H * ROAD_HORIZON + 30;
+  const spacingX = 36;
+  const spacingY = 32;
 
   for (let i = 0; i < count; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     state.enemies.push({
-      x: startX + col * spacingX + (Math.random() - 0.5) * 10,
-      y: startY + row * spacingY,
+      // world-space offsets from the wave's scroll position
+      col, row,
+      cols,
+      waveScrollPos: scrollPos,
+      offsetX: (col - (cols - 1) / 2) * spacingX + (Math.random() - 0.5) * 8,
+      offsetY: row * spacingY,
       alive: true,
       flashTimer: 0,
     });
   }
+}
+
+// Convert an enemy's world position to current screen position
+function enemyScreenPos(e) {
+  // distAhead: how far ahead of squad the wave is (positive = ahead/above)
+  const distAhead = e.waveScrollPos - state.scrollY;
+  // Map to world Y fraction: 0=horizon, 1=squad level
+  // distAhead=0 → at squad level (SQUAD_Y_FRAC)
+  // distAhead=ROW_SPACING → near horizon
+  const worldYFrac = Math.max(0, Math.min(1,
+    SQUAD_Y_FRAC - (distAhead / ROW_SPACING) * (SQUAD_Y_FRAC - ROAD_HORIZON - 0.05)
+  ));
+  const baseY = ROAD_HORIZON * H + worldYFrac * (H - ROAD_HORIZON * H);
+  const scale = scaleAtY(baseY);
+  const roadHalf = roadHalfAtY(baseY);
+
+  // X: centered on road, scaled
+  const sx = W / 2 + (e.offsetX / (W * 0.44 / 2)) * roadHalf;
+  const sy = baseY + e.offsetY * scale;
+  return { x: sx, y: sy, scale };
 }
 
 // ══════════════════════════════════════════════
@@ -421,77 +444,44 @@ function update() {
     if (state.gateFlash.timer <= 0) state.gateFlash = null;
   }
 
-  if (state.phase === 'gate') updateGate();
-  else if (state.phase === 'battle') updateBattle();
+  updateWorld();
 }
 
-// ── Gate phase ─────────────────────────────
-function updateGate() {
+// ── Single unified world update ─────────────
+function updateWorld() {
+  // Always scroll
   state.scrollY += SCROLL_SPEED;
 
-  // If a wave intro label is counting down, pause row processing but keep scrolling
-  if (state.waveLabel) {
-    state.waveLabel.timer--;
-    if (state.waveLabel.timer <= 0) {
-      const count = state.waveLabel.pendingCount;
-      state.waveLabel = null;
-      state.phase = 'battle';
-      spawnEnemies(count);
-      state.bullets = [];
-      state.shootTimer = 0;
-    }
-    return;
-  }
-
-  // Check rows
+  // ── Spawn waves when their scrollPos is reached ──
   for (const row of state.rows) {
     if (row.passed) continue;
-
-    // Row appears when scrollY reaches its scrollPos
-    // Row screen position: starts far (top of road) and scrolls toward player
     const distAhead = row.scrollPos - state.scrollY;
 
     if (row.type === 'gate') {
-      // Gate passes the squad when distAhead <= 0
       if (distAhead <= 0 && distAhead > -GATE_PASS_ZONE) {
         row.passed = true;
-        // Determine which side squad is on
         const side = state.squadX < W / 2 ? row.left : row.right;
         applyGate(side);
         if (state.units <= 0) return;
       }
     } else if (row.type === 'wave') {
-      if (distAhead <= 0) {
+      // Spawn enemies into the world when wave row is first reached
+      if (distAhead <= 0 && !row.spawned) {
+        row.spawned = true;
         row.passed = true;
-        // Show intro label first; battle starts after label fades
-        state.waveLabel = { text: `敌军来袭！${row.count} 人`, timer: 70, pendingCount: row.count };
-        return;
+        spawnEnemiesAtScroll(row.count, row.scrollPos);
       }
     }
   }
 
-  // All rows done
-  if (state.rows.every(r => r.passed)) levelWin();
-}
-
-// ── Battle phase ────────────────────────────
-function updateBattle() {
+  // ── Shooting ──────────────────────────────
   state.shootTimer++;
-
-  // Enemies advance
-  for (const e of state.enemies) {
-    if (!e.alive) continue;
-    e.y += ENEMY_ADVANCE;
-    if (e.flashTimer > 0) e.flashTimer--;
-  }
-
-  // Shoot
-  if (state.shootTimer >= SHOOT_INTERVAL) {
+  if (state.shootTimer >= SHOOT_INTERVAL && state.enemies.length > 0) {
     state.shootTimer = 0;
     fireFromSquad();
   }
 
-  // Move bullets
+  // ── Move bullets ──────────────────────────
   for (let i = state.bullets.length - 1; i >= 0; i--) {
     const b = state.bullets[i];
     b.x += b.vx; b.y += b.vy;
@@ -500,16 +490,17 @@ function updateBattle() {
     }
   }
 
-  // Bullet vs Enemy
+  // ── Bullet vs Enemy ───────────────────────
   for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
     const b = state.bullets[bi];
     let hit = false;
     for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
       const e = state.enemies[ei];
-      if (!e.alive) continue;
-      const dx = b.x - e.x, dy = b.y - e.y;
-      if (dx*dx + dy*dy < (BULLET_R + ENEMY_R) ** 2) {
-        spawnParticles(e.x, e.y, '#ff6b35', 6);
+      const pos = enemyScreenPos(e);
+      const er = ENEMY_R * pos.scale;
+      const dx = b.x - pos.x, dy = b.y - pos.y;
+      if (dx*dx + dy*dy < (BULLET_R + er) ** 2) {
+        spawnParticles(pos.x, pos.y, '#ff6b35', 6);
         state.enemies.splice(ei, 1);
         hit = true;
         break;
@@ -518,7 +509,7 @@ function updateBattle() {
     if (hit) state.bullets.splice(bi, 1);
   }
 
-  // Enemy vs Squad
+  // ── Enemy vs Squad collision ───────────────
   const squadSY = H * SQUAD_Y_FRAC;
   const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
@@ -526,10 +517,11 @@ function updateBattle() {
 
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
     const e = state.enemies[ei];
-    if (!e.alive) continue;
-    const dx = e.x - squadSX, dy = e.y - squadSY;
-    if (dx*dx + dy*dy < (clusterR + ENEMY_R) ** 2) {
-      spawnParticles(e.x, e.y, '#ff4757', 8);
+    const pos = enemyScreenPos(e);
+    const er = ENEMY_R * pos.scale;
+    const dx = pos.x - squadSX, dy = pos.y - squadSY;
+    if (dx*dx + dy*dy < (clusterR + er) ** 2) {
+      spawnParticles(pos.x, pos.y, '#ff4757', 8);
       state.enemies.splice(ei, 1);
       state.units = Math.max(0, state.units - 1);
       updateHUD();
@@ -538,14 +530,15 @@ function updateBattle() {
     }
   }
 
-  // Win wave
-  if (state.enemies.length === 0) {
-    state.phase = 'gate';
-    // Check if more rows remain
-    const remaining = state.rows.filter(r => !r.passed);
-    if (remaining.length === 0) {
-      levelWin();
-    }
+  // ── Remove enemies that scrolled past the squad ──
+  for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
+    const pos = enemyScreenPos(state.enemies[ei]);
+    if (pos.y > H + 60) state.enemies.splice(ei, 1);
+  }
+
+  // ── Level complete when all rows passed and no enemies left ──
+  if (state.rows.every(r => r.passed) && state.enemies.length === 0) {
+    levelWin();
   }
 }
 
@@ -561,20 +554,22 @@ function fireFromSquad() {
   if (state.enemies.length === 0) return;
   const squadSY = H * SQUAD_Y_FRAC;
   const squadSX = state.squadX;
-
-  // Each soldier fires at nearest enemy
   const scale = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
+
+  // Pre-compute enemy screen positions
+  const enemyPositions = state.enemies.map(e => enemyScreenPos(e));
 
   for (const sol of state.soldiers) {
     const sx = squadSX + sol.ox * spacing;
     const sy = squadSY + sol.oy * spacing;
 
     let nearest = null, nearestD = Infinity;
-    for (const e of state.enemies) {
-      const dx = e.x - sx, dy = e.y - sy;
+    for (let i = 0; i < enemyPositions.length; i++) {
+      const ep = enemyPositions[i];
+      const dx = ep.x - sx, dy = ep.y - sy;
       const d = dx*dx + dy*dy;
-      if (d < nearestD) { nearestD = d; nearest = e; }
+      if (d < nearestD) { nearestD = d; nearest = ep; }
     }
     if (!nearest) continue;
     const dx = nearest.x - sx, dy = nearest.y - sy;
@@ -592,17 +587,13 @@ function draw() {
   drawBackground();
   drawRoad();
 
-  if (state.phase === 'gate') {
-    drawGates();
-  } else if (state.phase === 'battle') {
-    drawEnemies();
-    drawBullets();
-  }
+  drawGates();
+  drawEnemies();
+  drawBullets();
 
   drawParticles();
   drawSquad();
   drawGateFlash();
-  if (state.waveLabel) drawWaveLabel();
 }
 
 // ── Background ──────────────────────────────
@@ -805,15 +796,16 @@ function drawGatePanel(side, x1, x2, y1, y2, scale) {
 
 // ── Enemies ─────────────────────────────────
 function drawEnemies() {
-  // Sort by y so closer enemies draw on top
-  const sorted = [...state.enemies].sort((a,b) => a.y - b.y);
-  for (const e of sorted) {
-    drawEnemyFigure(e.x, e.y, e.flashTimer > 0);
+  // Compute screen positions and sort by y (far → near)
+  const withPos = state.enemies.map(e => ({ e, pos: enemyScreenPos(e) }));
+  withPos.sort((a, b) => a.pos.y - b.pos.y);
+  for (const { e, pos } of withPos) {
+    drawEnemyFigure(pos.x, pos.y, pos.scale, e.flashTimer > 0);
   }
 }
 
-function drawEnemyFigure(x, y, flash) {
-  const s = scaleAtY(y);
+function drawEnemyFigure(x, y, s, flash) {
+  if (s === undefined) { s = scaleAtY(y); flash = false; }
   const br = ENEMY_R * s;
   const hr = ENEMY_HEAD_R * s;
 
