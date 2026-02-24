@@ -182,7 +182,7 @@ function defaultState(levelIdx) {
     phase: 'gate',       // 'gate' | 'battle' | 'dead' | 'win'
     level: levelIdx,
     units: 1,
-    squadX: 0,           // -1..1 normalized road X
+    squadX: 0,           // screen pixel X of squad center (set in startLevel)
     scrollY: 0,          // total scroll distance
     rows: [],            // built from level data
     rowIdx: 0,
@@ -203,6 +203,7 @@ const ROW_SPACING = 420;  // world-scroll units between rows
 
 function startLevel(levelIdx) {
   state = defaultState(levelIdx);
+  state.squadX = W / 2;   // start at screen center in pixels
   const def = LEVELS[levelIdx];
 
   // Assign scroll positions to each row
@@ -290,8 +291,8 @@ window.addEventListener('mousemove', e => {
   if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.clientX - lastDragX;
   lastDragX = e.clientX;
-  // Move squad: 1px drag = move 2px on screen, converted to normalized -1..1
-  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + (dx * 2) / W));
+  const margin = 60;
+  state.squadX = Math.max(margin, Math.min(W - margin, state.squadX + dx));
 });
 
 canvas.addEventListener('touchstart', e => {
@@ -303,7 +304,8 @@ window.addEventListener('touchmove', e => {
   if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.touches[0].clientX - lastDragX;
   lastDragX = e.touches[0].clientX;
-  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + (dx * 2) / W));
+  const margin = 60;
+  state.squadX = Math.max(margin, Math.min(W - margin, state.squadX + dx));
 }, { passive: true });
 
 // ══════════════════════════════════════════════
@@ -454,7 +456,7 @@ function updateGate() {
       if (distAhead <= 0 && distAhead > -GATE_PASS_ZONE) {
         row.passed = true;
         // Determine which side squad is on
-        const side = state.squadX < 0 ? row.left : row.right;
+        const side = state.squadX < W / 2 ? row.left : row.right;
         applyGate(side);
         if (state.units <= 0) return;
       }
@@ -518,7 +520,7 @@ function updateBattle() {
 
   // Enemy vs Squad
   const squadSY = H * SQUAD_Y_FRAC;
-  const squadSX = W / 2 + state.squadX * roadHalfAtY(squadSY);
+  const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
   const clusterR = getClusterRadius(state.units) * scale * (UNIT_R * 2 + 3);
 
@@ -558,7 +560,7 @@ function getClusterRadius(n) {
 function fireFromSquad() {
   if (state.enemies.length === 0) return;
   const squadSY = H * SQUAD_Y_FRAC;
-  const squadSX = W / 2 + state.squadX * roadHalfAtY(squadSY);
+  const squadSX = state.squadX;
 
   // Each soldier fires at nearest enemy
   const scale = scaleAtY(squadSY);
@@ -857,7 +859,7 @@ function drawSquad() {
   if (state.units <= 0) return;
 
   const squadSY = H * SQUAD_Y_FRAC;
-  const squadSX = W / 2 + state.squadX * roadHalfAtY(squadSY);
+  const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
 
