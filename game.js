@@ -288,7 +288,7 @@ let lastDragX  = 0;
 canvas.addEventListener('mousedown', e => { dragActive = true; lastDragX = e.clientX; });
 window.addEventListener('mouseup',   () => { dragActive = false; });
 window.addEventListener('mousemove', e => {
-  if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
+  if (!dragActive || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.clientX - lastDragX;
   lastDragX = e.clientX;
   const margin = 60;
@@ -301,7 +301,7 @@ canvas.addEventListener('touchstart', e => {
 }, { passive: true });
 window.addEventListener('touchend', () => { dragActive = false; });
 window.addEventListener('touchmove', e => {
-  if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
+  if (!dragActive || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.touches[0].clientX - lastDragX;
   lastDragX = e.touches[0].clientX;
   const margin = 60;
