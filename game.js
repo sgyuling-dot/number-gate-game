@@ -386,21 +386,30 @@ function spawnEnemiesAtScroll(count, scrollPos) {
 
 // Convert an enemy's world position to current screen position
 function enemyScreenPos(e) {
-  // distAhead: how far ahead of squad the wave is (positive = ahead/above)
+  // distAhead > 0 means enemy is ahead of (above) the squad
+  // distAhead = ROW_SPACING  → near horizon
+  // distAhead = 0            → at squad level
+  // distAhead < 0            → behind/below squad (should be removed)
   const distAhead = e.waveScrollPos - state.scrollY;
-  // Map to world Y fraction: 0=horizon, 1=squad level
-  // distAhead=0 → at squad level (SQUAD_Y_FRAC)
-  // distAhead=ROW_SPACING → near horizon
-  const worldYFrac = Math.max(0, Math.min(1,
-    SQUAD_Y_FRAC - (distAhead / ROW_SPACING) * (SQUAD_Y_FRAC - ROAD_HORIZON - 0.05)
-  ));
-  const baseY = ROAD_HORIZON * H + worldYFrac * (H - ROAD_HORIZON * H);
-  const scale = scaleAtY(baseY);
+
+  // t: 0 = at horizon, 1 = at squad screen Y
+  // When distAhead = ROW_SPACING → t = 0 (horizon)
+  // When distAhead = 0           → t = 1 (squad level)
+  const t = Math.max(0, Math.min(1.2, 1 - distAhead / ROW_SPACING));
+
+  const horizonY = ROAD_HORIZON * H;
+  const squadY   = SQUAD_Y_FRAC * H;
+  const baseY    = horizonY + t * (squadY - horizonY);
+
+  const scale    = scaleAtY(baseY);
   const roadHalf = roadHalfAtY(baseY);
 
-  // X: centered on road, scaled
-  const sx = W / 2 + (e.offsetX / (W * 0.44 / 2)) * roadHalf;
+  // offsetX is in pixels at squad level; scale it by perspective
+  const normalizedX = e.offsetX / (W * ROAD_WIDTH_BOTTOM / 2);
+  const sx = W / 2 + normalizedX * roadHalf;
+  // offsetY is row index * spacing; scale by perspective
   const sy = baseY + e.offsetY * scale;
+
   return { x: sx, y: sy, scale };
 }
 
@@ -465,11 +474,15 @@ function updateWorld() {
         if (state.units <= 0) return;
       }
     } else if (row.type === 'wave') {
-      // Spawn enemies into the world when wave row is first reached
-      if (distAhead <= 0 && !row.spawned) {
+      // Pre-spawn enemies when they are one ROW_SPACING ahead (near horizon)
+      // so they scroll in naturally from the distance
+      if (distAhead <= ROW_SPACING && !row.spawned) {
         row.spawned = true;
-        row.passed = true;
         spawnEnemiesAtScroll(row.count, row.scrollPos);
+      }
+      // Mark passed once wave has reached the squad
+      if (distAhead <= 0 && !row.passed) {
+        row.passed = true;
       }
     }
   }
