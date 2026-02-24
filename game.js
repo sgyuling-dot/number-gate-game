@@ -1,11 +1,10 @@
 // ─────────────────────────────────────────────
-//  数字门大作战  -  game.js
+//  数字门大作战  v2  -  game.js
 // ─────────────────────────────────────────────
 
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 
-// ── DOM refs ──────────────────────────────────
 const unitCountEl = document.getElementById('unit-count');
 const levelNumEl  = document.getElementById('level-num');
 const overlay     = document.getElementById('overlay');
@@ -14,127 +13,258 @@ const overlayTitle= document.getElementById('overlay-title');
 const overlayMsg  = document.getElementById('overlay-message');
 const overlayBtn  = document.getElementById('overlay-btn');
 
-// ── Resize canvas to window ───────────────────
+// ── Canvas resize ────────────────────────────
+let W, H;
 function resize() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
 }
 resize();
 window.addEventListener('resize', resize);
 
 // ══════════════════════════════════════════════
 //  LEVEL DATA
+//  Each level: array of rows (gate or wave)
+//  gate: { type:'gate', left:{op,val}, right:{op,val} }
+//    op: 'add'|'sub'|'mul'  (add=+N, sub=-N, mul=×N)
+//  wave: { type:'wave', count:N }
 // ══════════════════════════════════════════════
-// Each level: array of "rows" spaced evenly.
-// A row is either a door pair or an enemy wave.
-// Door pair: { type:'doors', left:{color,value}, right:{color,value} }
-//   color:'red' → subtract value  |  color:'blue' → multiply value
-// Enemy wave: { type:'enemies', count:N }
-
 const LEVELS = [
-  // ── Level 1 ────────────────────────────────
-  {
-    rows: [
-      { type:'doors',  left:{color:'red',  value:1}, right:{color:'blue', value:2} },
-      { type:'enemies', count:6 },
-    ]
-  },
-  // ── Level 2 ────────────────────────────────
-  {
-    rows: [
-      { type:'doors',  left:{color:'blue', value:2}, right:{color:'red',  value:3} },
-      { type:'doors',  left:{color:'red',  value:2}, right:{color:'blue', value:3} },
-      { type:'enemies', count:12 },
-    ]
-  },
-  // ── Level 3 ────────────────────────────────
-  {
-    rows: [
-      { type:'doors',  left:{color:'blue', value:2}, right:{color:'red',  value:5} },
-      { type:'doors',  left:{color:'red',  value:3}, right:{color:'blue', value:3} },
-      { type:'enemies', count:20 },
-    ]
-  },
-  // ── Level 4 ────────────────────────────────
-  {
-    rows: [
-      { type:'doors',  left:{color:'red',  value:4}, right:{color:'blue', value:2} },
-      { type:'doors',  left:{color:'blue', value:2}, right:{color:'red',  value:8} },
-      { type:'doors',  left:{color:'red',  value:3}, right:{color:'blue', value:3} },
-      { type:'enemies', count:30 },
-    ]
-  },
-  // ── Level 5 (Boss) ─────────────────────────
-  {
-    rows: [
-      { type:'doors',  left:{color:'blue', value:3}, right:{color:'red',  value:10} },
-      { type:'doors',  left:{color:'red',  value:5}, right:{color:'blue', value:2}  },
-      { type:'doors',  left:{color:'blue', value:2}, right:{color:'red',  value:8}  },
-      { type:'enemies', count:50 },
-    ]
-  },
+  // Level 1 — tutorial, 6 waves
+  { rows:[
+    {type:'gate', left:{op:'sub',val:1}, right:{op:'add',val:2}},
+    {type:'wave', count:3},
+    {type:'gate', left:{op:'add',val:3}, right:{op:'sub',val:1}},
+    {type:'wave', count:4},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:2}},
+    {type:'wave', count:5},
+    {type:'gate', left:{op:'sub',val:2}, right:{op:'add',val:4}},
+    {type:'wave', count:6},
+    {type:'gate', left:{op:'add',val:5}, right:{op:'sub',val:3}},
+    {type:'wave', count:7},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:4}},
+    {type:'wave', count:8},
+  ]},
+  // Level 2 — 7 waves
+  { rows:[
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:3}},
+    {type:'wave', count:6},
+    {type:'gate', left:{op:'sub',val:4}, right:{op:'add',val:5}},
+    {type:'wave', count:8},
+    {type:'gate', left:{op:'add',val:6}, right:{op:'sub',val:5}},
+    {type:'wave', count:10},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:6}},
+    {type:'wave', count:10},
+    {type:'gate', left:{op:'sub',val:3}, right:{op:'mul',val:3}},
+    {type:'wave', count:12},
+    {type:'gate', left:{op:'add',val:7}, right:{op:'sub',val:6}},
+    {type:'wave', count:12},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'wave', count:14},
+  ]},
+  // Level 3 — 8 waves
+  { rows:[
+    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:5}},
+    {type:'wave', count:10},
+    {type:'gate', left:{op:'sub',val:6}, right:{op:'add',val:8}},
+    {type:'wave', count:12},
+    {type:'gate', left:{op:'add',val:8}, right:{op:'sub',val:7}},
+    {type:'wave', count:14},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'wave', count:14},
+    {type:'gate', left:{op:'sub',val:5}, right:{op:'mul',val:2}},
+    {type:'wave', count:16},
+    {type:'gate', left:{op:'add',val:10}, right:{op:'sub',val:9}},
+    {type:'wave', count:16},
+    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:10}},
+    {type:'wave', count:18},
+    {type:'gate', left:{op:'sub',val:8}, right:{op:'add',val:12}},
+    {type:'wave', count:20},
+  ]},
+  // Level 4 — 9 waves
+  { rows:[
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'wave', count:14},
+    {type:'gate', left:{op:'sub',val:10}, right:{op:'add',val:10}},
+    {type:'wave', count:16},
+    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:12}},
+    {type:'wave', count:18},
+    {type:'gate', left:{op:'add',val:12}, right:{op:'sub',val:10}},
+    {type:'wave', count:18},
+    {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
+    {type:'wave', count:20},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:14}},
+    {type:'wave', count:22},
+    {type:'gate', left:{op:'add',val:15}, right:{op:'sub',val:12}},
+    {type:'wave', count:22},
+    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:3}},
+    {type:'wave', count:24},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
+    {type:'wave', count:28},
+  ]},
+  // Level 5 — 10 waves (Boss)
+  { rows:[
+    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:10}},
+    {type:'wave', count:18},
+    {type:'gate', left:{op:'sub',val:12}, right:{op:'add',val:15}},
+    {type:'wave', count:20},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
+    {type:'wave', count:22},
+    {type:'gate', left:{op:'add',val:18}, right:{op:'sub',val:14}},
+    {type:'wave', count:24},
+    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:3}},
+    {type:'wave', count:26},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:18}},
+    {type:'wave', count:28},
+    {type:'gate', left:{op:'add',val:20}, right:{op:'sub',val:16}},
+    {type:'wave', count:30},
+    {type:'gate', left:{op:'sub',val:15}, right:{op:'mul',val:2}},
+    {type:'wave', count:32},
+    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:20}},
+    {type:'wave', count:36},
+    {type:'gate', left:{op:'sub',val:18}, right:{op:'add',val:25}},
+    {type:'wave', count:40},
+  ]},
 ];
 
 // ══════════════════════════════════════════════
 //  CONSTANTS
 // ══════════════════════════════════════════════
-const UNIT_RADIUS    = 10;
-const ENEMY_RADIUS   = 12;
-const BULLET_RADIUS  = 4;
-const BULLET_SPEED   = 7;
-const SQUAD_SPEED    = 2;        // pixels per frame (forward/upward)
-const DOOR_HEIGHT    = 90;
-const DOOR_WIDTH     = 80;
-const DOOR_GAP       = 40;       // gap between two doors
-const ROW_SPACING    = 320;      // vertical distance between rows
-const ENEMY_ROWS     = 3;        // enemies arranged in grid rows
-const SHOOT_INTERVAL = 25;       // frames between shots
-const UNIT_SPREAD    = 22;       // spacing between units in formation
-const ENEMY_ADVANCE  = 0.6;      // px/frame enemies move toward player
+const ROAD_WIDTH_BOTTOM = 0.62;  // fraction of W at bottom
+const ROAD_WIDTH_TOP    = 0.22;  // fraction of W at top
+const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
+const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
+const SCROLL_SPEED      = 3.5;   // world scroll px/frame
+const UNIT_R            = 7;     // soldier body radius
+const HEAD_R            = 4.5;
+const ENEMY_R           = 9;
+const ENEMY_HEAD_R      = 5.5;
+const BULLET_R          = 3.5;
+const BULLET_SPEED      = 9;
+const SHOOT_INTERVAL    = 18;    // frames
+const ENEMY_ADVANCE     = 0.9;   // px/frame
+const GATE_H_WORLD      = 110;   // gate height in world units
+const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
+const MAX_UNITS         = 20;
+
+// ══════════════════════════════════════════════
+//  PERSPECTIVE HELPERS
+//  World Y = 0 at horizon, increases downward.
+//  We map worldY → screenY and compute road X bounds.
+// ══════════════════════════════════════════════
+function worldToScreen(worldX, worldY) {
+  // worldY: 0=horizon, 1=bottom of screen
+  const sy = ROAD_HORIZON * H + worldY * (H - ROAD_HORIZON * H);
+  const roadHalfW = (ROAD_WIDTH_BOTTOM + (ROAD_WIDTH_TOP - ROAD_WIDTH_BOTTOM) * (1 - worldY)) * W / 2;
+  const sx = W / 2 + worldX * roadHalfW;
+  return { x: sx, y: sy };
+}
+
+// Road half-width in screen pixels at a given screenY
+function roadHalfAtY(sy) {
+  const t = (sy - ROAD_HORIZON * H) / (H - ROAD_HORIZON * H);
+  return (ROAD_WIDTH_BOTTOM + (ROAD_WIDTH_TOP - ROAD_WIDTH_BOTTOM) * (1 - t)) * W / 2;
+}
+
+// Scale factor at screenY (for sizing objects)
+function scaleAtY(sy) {
+  const t = Math.max(0, (sy - ROAD_HORIZON * H) / (H - ROAD_HORIZON * H));
+  return 0.25 + 0.75 * t;
+}
 
 // ══════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════
-let state = {};   // populated by startLevel()
+let state = {};
 
-function defaultState() {
+function defaultState(levelIdx) {
   return {
-    phase: 'gate',      // 'gate' | 'battle' | 'dead' | 'win'
-    level: 0,
-    units: 10,
-    squadX: 0,          // logical center X of squad (set in startLevel)
-    worldY: 0,          // how many pixels the world has scrolled
-    rows: [],           // processed row objects with worldY position
-    currentRowIdx: 0,
+    phase: 'gate',       // 'gate' | 'battle' | 'dead' | 'win'
+    level: levelIdx,
+    units: 1,
+    squadX: 0,           // -1..1 normalized road X
+    scrollY: 0,          // total scroll distance
+    rows: [],            // built from level data
+    rowIdx: 0,
     bullets: [],
     enemies: [],
     shootTimer: 0,
     particles: [],
-    transitioning: false,
+    soldiers: [],        // animated soldier positions (screen)
+    gateFlash: null,     // { color, timer }
+    waveLabel: null,     // { text, timer }
   };
 }
 
 // ══════════════════════════════════════════════
 //  LEVEL SETUP
 // ══════════════════════════════════════════════
+const ROW_SPACING = 420;  // world-scroll units between rows
+
 function startLevel(levelIdx) {
-  state = defaultState();
-  state.level = levelIdx;
-  state.squadX = canvas.width / 2;
+  state = defaultState(levelIdx);
+  const def = LEVELS[levelIdx];
 
-  const levelDef = LEVELS[levelIdx];
-
-  // Build row objects.  We lay them out from y = -ROW_SPACING upward
-  // (negative = above the screen; world scrolls upward so they appear from bottom).
-  // Row 0 is closest (lowest on the world), row N is farthest (highest).
-  const totalRows = levelDef.rows.length;
-  state.rows = levelDef.rows.map((rowDef, i) => {
-    const worldY = -(i + 1) * ROW_SPACING;
-    return { ...rowDef, worldY, passed: false };
-  });
+  // Assign scroll positions to each row
+  state.rows = def.rows.map((row, i) => ({
+    ...row,
+    scrollPos: (i + 1) * ROW_SPACING,
+    passed: false,
+  }));
 
   levelNumEl.textContent = levelIdx + 1;
   updateHUD();
+  buildSoldiers();
+}
+
+// ══════════════════════════════════════════════
+//  SOLDIERS  (visual formation)
+// ══════════════════════════════════════════════
+function buildSoldiers() {
+  // Arrange N soldiers in a tight circular cluster
+  const n = state.units;
+  const squadSY = H * SQUAD_Y_FRAC;
+  const scale   = scaleAtY(squadSY);
+  const spacing = (UNIT_R * 2 + 3) * scale;
+
+  state.soldiers = [];
+  if (n === 0) return;
+
+  // Place in concentric rings
+  const positions = circleFormation(n);
+  for (let i = 0; i < n; i++) {
+    state.soldiers.push({
+      ox: positions[i].x,  // offset from squad center (normalized)
+      oy: positions[i].y,
+      // animation
+      bobPhase: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+function circleFormation(n) {
+  if (n === 1) return [{x:0, y:0}];
+  const positions = [];
+  // Ring sizes: 1, 6, 12, ...
+  const rings = [1, 6, 12, 20];
+  let remaining = n;
+  let ringIdx = 0;
+  let r = 0;
+  while (remaining > 0) {
+    const count = Math.min(rings[ringIdx] || 20, remaining);
+    if (r === 0) {
+      positions.push({x:0, y:0});
+    } else {
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+        positions.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+      }
+    }
+    remaining -= count;
+    ringIdx++;
+    r += 1;
+  }
+  return positions;
 }
 
 // ══════════════════════════════════════════════
@@ -142,15 +272,14 @@ function startLevel(levelIdx) {
 // ══════════════════════════════════════════════
 function updateHUD() {
   unitCountEl.textContent = state.units;
-  // Brief scale bump animation
   unitCountEl.classList.remove('bump');
-  void unitCountEl.offsetWidth; // reflow
+  void unitCountEl.offsetWidth;
   unitCountEl.classList.add('bump');
   setTimeout(() => unitCountEl.classList.remove('bump'), 200);
 }
 
 // ══════════════════════════════════════════════
-//  INPUT  (mouse + touch drag)
+//  INPUT
 // ══════════════════════════════════════════════
 let dragActive = false;
 let lastDragX  = 0;
@@ -158,10 +287,12 @@ let lastDragX  = 0;
 canvas.addEventListener('mousedown', e => { dragActive = true; lastDragX = e.clientX; });
 window.addEventListener('mouseup',   () => { dragActive = false; });
 window.addEventListener('mousemove', e => {
-  if (!dragActive) return;
+  if (!dragActive || state.phase !== 'gate') return;
   const dx = e.clientX - lastDragX;
   lastDragX = e.clientX;
-  moveSquad(dx);
+  // Convert pixel dx to normalized road movement
+  const roadPx = roadHalfAtY(H * SQUAD_Y_FRAC) * 2;
+  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + dx / roadPx * 2));
 });
 
 canvas.addEventListener('touchstart', e => {
@@ -170,198 +301,180 @@ canvas.addEventListener('touchstart', e => {
 }, { passive: true });
 window.addEventListener('touchend', () => { dragActive = false; });
 window.addEventListener('touchmove', e => {
-  if (!dragActive) return;
+  if (!dragActive || state.phase !== 'gate') return;
   const dx = e.touches[0].clientX - lastDragX;
   lastDragX = e.touches[0].clientX;
-  moveSquad(dx);
+  const roadPx = roadHalfAtY(H * SQUAD_Y_FRAC) * 2;
+  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + dx / roadPx * 2));
 }, { passive: true });
 
-function moveSquad(dx) {
-  if (state.phase !== 'gate') return;
-  const margin = 60;
-  state.squadX = Math.max(margin, Math.min(canvas.width - margin, state.squadX + dx));
-}
-
 // ══════════════════════════════════════════════
-//  OVERLAY helpers
+//  OVERLAY
 // ══════════════════════════════════════════════
-function showOverlay(icon, title, msg, btnText, callback) {
+function showOverlay(icon, title, msg, btnText, cb) {
   overlayIcon.textContent  = icon;
   overlayTitle.textContent = title;
   overlayMsg.textContent   = msg;
   overlayBtn.textContent   = btnText;
-  overlayBtn.onclick       = () => { overlay.classList.add('hidden'); callback(); };
+  overlayBtn.onclick = () => { overlay.classList.add('hidden'); cb(); };
   overlay.classList.remove('hidden');
 }
 
 function gameOver() {
   state.phase = 'dead';
-  showOverlay(
-    '💀',
-    '全军覆没！',
-    `第 ${state.level + 1} 关失败，单位归零。\n快重新来过！`,
-    '再来一次',
-    () => startLevel(state.level)
-  );
+  showOverlay('💀','全军覆没！',`第 ${state.level+1} 关失败，单位归零。`,'再来一次', () => startLevel(state.level));
 }
 
 function levelWin() {
   state.phase = 'win';
-  if (state.level + 1 >= LEVELS.length) {
-    showOverlay(
-      '🏆',
-      '全关通关！',
-      `恭喜你完成了全部 ${LEVELS.length} 关！\n你是真正的数字门大师！`,
-      '再玩一次',
-      () => startLevel(0)
-    );
+  const isLast = state.level + 1 >= LEVELS.length;
+  if (isLast) {
+    showOverlay('🏆','全关通关！',`恭喜完成全部 ${LEVELS.length} 关！剩余单位：${state.units}`,'再玩一次', () => startLevel(0));
   } else {
-    showOverlay(
-      '🎉',
-      `第 ${state.level + 1} 关通关！`,
-      `剩余单位：${state.units}`,
-      '下一关',
-      () => startLevel(state.level + 1)
-    );
+    showOverlay('🎉',`第 ${state.level+1} 关通关！`,`剩余单位：${state.units}`,'下一关', () => startLevel(state.level+1));
   }
 }
 
 // ══════════════════════════════════════════════
-//  SPAWN ENEMIES  (for battle phase)
+//  APPLY GATE EFFECT
+// ══════════════════════════════════════════════
+function applyGate(side) {
+  const color = side.op === 'sub' ? 'red' : 'blue';
+  state.gateFlash = { color, timer: 18 };
+
+  if (side.op === 'add') {
+    state.units = Math.min(MAX_UNITS, state.units + side.val);
+  } else if (side.op === 'sub') {
+    state.units = Math.max(0, state.units - side.val);
+  } else if (side.op === 'mul') {
+    state.units = Math.min(MAX_UNITS, state.units * side.val);
+  }
+
+  updateHUD();
+  buildSoldiers();
+
+  if (state.units <= 0) {
+    setTimeout(gameOver, 300);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  SPAWN ENEMIES
 // ══════════════════════════════════════════════
 function spawnEnemies(count) {
   state.enemies = [];
-  const cols = Math.ceil(Math.sqrt(count * 1.5));
-  const rows = Math.ceil(count / cols);
-  const spacingX = 36;
-  const spacingY = 34;
-  const startX = canvas.width / 2 - (cols - 1) * spacingX / 2;
-  const startY = 80;
+  const cols = Math.ceil(Math.sqrt(count * 1.6));
+  const spacingX = 38;
+  const spacingY = 36;
+  const startX = W / 2 - (cols - 1) * spacingX / 2;
+  const startY = H * ROAD_HORIZON + 30;
 
   for (let i = 0; i < count; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     state.enemies.push({
-      x: startX + col * spacingX + (Math.random() - 0.5) * 8,
-      y: startY  + row * spacingY,
-      hp: 1,
-      radius: ENEMY_RADIUS,
+      x: startX + col * spacingX + (Math.random() - 0.5) * 10,
+      y: startY + row * spacingY,
+      alive: true,
       flashTimer: 0,
     });
   }
 }
 
 // ══════════════════════════════════════════════
-//  PARTICLE helper
+//  PARTICLES
 // ══════════════════════════════════════════════
-function spawnParticles(x, y, color, n = 6) {
+function spawnParticles(x, y, color, n = 7) {
   for (let i = 0; i < n; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 3;
+    const speed = 1.5 + Math.random() * 3.5;
     state.particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 1,
       color,
-      radius: 3 + Math.random() * 3,
+      r: 2 + Math.random() * 3,
     });
   }
 }
 
 // ══════════════════════════════════════════════
-//  APPLY DOOR EFFECT
+//  UPDATE
 // ══════════════════════════════════════════════
-function applyDoor(door) {
-  if (door.color === 'red') {
-    state.units = Math.max(0, state.units - door.value);
-  } else {
-    state.units = Math.floor(state.units * door.value);
-  }
-  updateHUD();
-  if (state.units <= 0) {
-    gameOver();
-  }
-}
+let frameCount = 0;
 
-// ══════════════════════════════════════════════
-//  UPDATE  (called each frame)
-// ══════════════════════════════════════════════
 function update() {
   if (state.phase === 'dead' || state.phase === 'win') return;
+  frameCount++;
 
-  // ── particles ──────────────────────────────
+  // Particles
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
-    p.x    += p.vx;
-    p.y    += p.vy;
-    p.life -= 0.04;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08;
+    p.life -= 0.035;
     if (p.life <= 0) state.particles.splice(i, 1);
   }
 
-  if (state.phase === 'gate') {
-    updateGatePhase();
-  } else if (state.phase === 'battle') {
-    updateBattlePhase();
+  if (state.gateFlash) {
+    state.gateFlash.timer--;
+    if (state.gateFlash.timer <= 0) state.gateFlash = null;
   }
+
+  if (state.phase === 'gate') updateGate();
+  else if (state.phase === 'battle') updateBattle();
 }
 
 // ── Gate phase ─────────────────────────────
-function updateGatePhase() {
-  state.worldY += SQUAD_SPEED;
+function updateGate() {
+  state.scrollY += SCROLL_SPEED;
 
-  // Check each unprocessed row
-  for (let i = 0; i < state.rows.length; i++) {
-    const row = state.rows[i];
+  // Check rows
+  for (const row of state.rows) {
     if (row.passed) continue;
 
-    // Screen Y of this row = canvas.height * 0.72 is where squad sits visually
-    // Row appears at: rowScreenY = canvas.height * 0.72 + (row.worldY + state.worldY)
-    const rowScreenY = canvas.height * 0.72 + row.worldY + state.worldY;
+    // Row appears when scrollY reaches its scrollPos
+    // Row screen position: starts far (top of road) and scrolls toward player
+    const distAhead = row.scrollPos - state.scrollY;
 
-    if (row.type === 'doors') {
-      // Detect passage: squad center crosses door row
-      if (rowScreenY <= canvas.height * 0.72) {
+    if (row.type === 'gate') {
+      // Gate passes the squad when distAhead <= 0
+      if (distAhead <= 0 && distAhead > -GATE_PASS_ZONE) {
         row.passed = true;
-
-        // Determine which door the squad passed through
-        const cw = canvas.width;
-        const doorTotalW = DOOR_WIDTH * 2 + DOOR_GAP;
-        const leftDoorCenterX  = cw / 2 - DOOR_GAP / 2 - DOOR_WIDTH / 2;
-        const rightDoorCenterX = cw / 2 + DOOR_GAP / 2 + DOOR_WIDTH / 2;
-
-        const distToLeft  = Math.abs(state.squadX - leftDoorCenterX);
-        const distToRight = Math.abs(state.squadX - rightDoorCenterX);
-        const chosenDoor  = distToLeft < distToRight ? row.left : row.right;
-
-        applyDoor(chosenDoor);
-        if (state.phase !== 'gate') return; // game over triggered
-        spawnParticles(state.squadX, canvas.height * 0.72, chosenDoor.color === 'red' ? '#ff4757' : '#2ed573', 12);
+        // Determine which side squad is on
+        const side = state.squadX < 0 ? row.left : row.right;
+        applyGate(side);
+        if (state.units <= 0) return;
       }
-    } else if (row.type === 'enemies') {
-      if (rowScreenY <= canvas.height * 0.72) {
+    } else if (row.type === 'wave') {
+      if (distAhead <= 0) {
         row.passed = true;
-        // Transition to battle
         state.phase = 'battle';
         spawnEnemies(row.count);
         state.bullets = [];
         state.shootTimer = 0;
+        state.waveLabel = { text: `敌军来袭！${row.count} 人`, timer: 90 };
         return;
       }
     }
   }
 
-  // If all rows passed without enemies (shouldn't happen with proper level data)
-  const allPassed = state.rows.every(r => r.passed);
-  if (allPassed) levelWin();
+  // All rows done
+  if (state.rows.every(r => r.passed)) levelWin();
 }
 
 // ── Battle phase ────────────────────────────
-function updateBattlePhase() {
+function updateBattle() {
+  if (state.waveLabel) {
+    state.waveLabel.timer--;
+    if (state.waveLabel.timer <= 0) state.waveLabel = null;
+  }
+
   state.shootTimer++;
 
-  // Enemies advance toward player squad
+  // Enemies advance
   for (const e of state.enemies) {
+    if (!e.alive) continue;
     e.y += ENEMY_ADVANCE;
     if (e.flashTimer > 0) e.flashTimer--;
   }
@@ -375,24 +488,22 @@ function updateBattlePhase() {
   // Move bullets
   for (let i = state.bullets.length - 1; i >= 0; i--) {
     const b = state.bullets[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    // Remove off-screen
-    if (b.y < -20 || b.x < -20 || b.x > canvas.width + 20) {
+    b.x += b.vx; b.y += b.vy;
+    if (b.y < H * ROAD_HORIZON - 20 || b.x < 0 || b.x > W) {
       state.bullets.splice(i, 1);
     }
   }
 
-  // Bullet vs Enemy collision
+  // Bullet vs Enemy
   for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
     const b = state.bullets[bi];
     let hit = false;
     for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
       const e = state.enemies[ei];
-      const dx = b.x - e.x;
-      const dy = b.y - e.y;
-      if (dx * dx + dy * dy < (BULLET_RADIUS + e.radius) ** 2) {
-        spawnParticles(e.x, e.y, '#ff6b35', 5);
+      if (!e.alive) continue;
+      const dx = b.x - e.x, dy = b.y - e.y;
+      if (dx*dx + dy*dy < (BULLET_R + ENEMY_R) ** 2) {
+        spawnParticles(e.x, e.y, '#ff6b35', 6);
         state.enemies.splice(ei, 1);
         hit = true;
         break;
@@ -401,281 +512,435 @@ function updateBattlePhase() {
     if (hit) state.bullets.splice(bi, 1);
   }
 
-  // Enemy vs Squad collision
-  const squadPositions = getSquadPositions();
+  // Enemy vs Squad
+  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSX = W / 2 + state.squadX * roadHalfAtY(squadSY);
+  const scale   = scaleAtY(squadSY);
+  const clusterR = getClusterRadius(state.units) * scale * (UNIT_R * 2 + 3);
+
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
     const e = state.enemies[ei];
-    // Check if any enemy reached squad Y band
-    if (e.y + e.radius >= canvas.height * 0.72 - UNIT_RADIUS) {
-      // Kill one unit per colliding enemy
-      spawnParticles(e.x, e.y, '#ff4757', 10);
+    if (!e.alive) continue;
+    const dx = e.x - squadSX, dy = e.y - squadSY;
+    if (dx*dx + dy*dy < (clusterR + ENEMY_R) ** 2) {
+      spawnParticles(e.x, e.y, '#ff4757', 8);
       state.enemies.splice(ei, 1);
       state.units = Math.max(0, state.units - 1);
       updateHUD();
+      buildSoldiers();
       if (state.units <= 0) { gameOver(); return; }
     }
   }
 
-  // Check win condition
+  // Win wave
   if (state.enemies.length === 0) {
-    levelWin();
+    state.phase = 'gate';
+    // Check if more rows remain
+    const remaining = state.rows.filter(r => !r.passed);
+    if (remaining.length === 0) {
+      levelWin();
+    }
   }
 }
 
-// ── Fire bullets toward nearest enemies ────
+function getClusterRadius(n) {
+  if (n <= 1) return 0.5;
+  if (n <= 7) return 1;
+  if (n <= 13) return 2;
+  return 3;
+}
+
+// ── Fire ────────────────────────────────────
 function fireFromSquad() {
   if (state.enemies.length === 0) return;
-  const positions = getSquadPositions();
-  // Each unit fires at nearest enemy
-  for (const pos of positions) {
-    // Find nearest alive enemy
-    let nearest = null;
-    let nearestDist = Infinity;
+  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSX = W / 2 + state.squadX * roadHalfAtY(squadSY);
+
+  // Each soldier fires at nearest enemy
+  const scale = scaleAtY(squadSY);
+  const spacing = (UNIT_R * 2 + 3) * scale;
+
+  for (const sol of state.soldiers) {
+    const sx = squadSX + sol.ox * spacing;
+    const sy = squadSY + sol.oy * spacing;
+
+    let nearest = null, nearestD = Infinity;
     for (const e of state.enemies) {
-      const dx = e.x - pos.x;
-      const dy = e.y - pos.y;
-      const d  = dx * dx + dy * dy;
-      if (d < nearestDist) { nearestDist = d; nearest = e; }
+      const dx = e.x - sx, dy = e.y - sy;
+      const d = dx*dx + dy*dy;
+      if (d < nearestD) { nearestD = d; nearest = e; }
     }
     if (!nearest) continue;
-    const dx = nearest.x - pos.x;
-    const dy = nearest.y - pos.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    state.bullets.push({
-      x: pos.x,
-      y: pos.y - UNIT_RADIUS,
-      vx: (dx / len) * BULLET_SPEED,
-      vy: (dy / len) * BULLET_SPEED,
-    });
+    const dx = nearest.x - sx, dy = nearest.y - sy;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: dx/len * BULLET_SPEED, vy: dy/len * BULLET_SPEED });
   }
-}
-
-// ── Squad unit positions ─────────────────────
-function getSquadPositions() {
-  const n = state.units;
-  const squadY = canvas.height * 0.72;
-  const positions = [];
-  const cols = Math.min(n, Math.floor(canvas.width / (UNIT_SPREAD * 1.2)));
-  for (let i = 0; i < n; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const totalCols = Math.min(n - row * cols, cols);
-    const startX = state.squadX - (totalCols - 1) * UNIT_SPREAD / 2;
-    positions.push({
-      x: startX + col * UNIT_SPREAD,
-      y: squadY + row * UNIT_SPREAD,
-    });
-  }
-  return positions;
 }
 
 // ══════════════════════════════════════════════
 //  DRAW
 // ══════════════════════════════════════════════
 function draw() {
-  const W = canvas.width;
-  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
 
-  // ── Background ─────────────────────────────
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0f0c29');
-  grad.addColorStop(1, '#302b63');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  drawBackground();
+  drawRoad();
 
-  // Faint lane lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-  ctx.lineWidth = 1;
-  const laneW = W / 6;
-  for (let i = 1; i < 6; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * laneW, 0);
-    ctx.lineTo(i * laneW, H);
-    ctx.stroke();
+  if (state.phase === 'gate') {
+    drawGates();
+  } else if (state.phase === 'battle') {
+    drawEnemies();
+    drawBullets();
+    if (state.waveLabel) drawWaveLabel();
   }
 
-  // Road center line (dashed, scrolls)
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([24, 20]);
-  ctx.lineDashOffset = -(state.worldY % 44);
+  drawParticles();
+  drawSquad();
+  drawGateFlash();
+}
+
+// ── Background ──────────────────────────────
+function drawBackground() {
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, H * ROAD_HORIZON);
+  sky.addColorStop(0, '#b8d4f0');
+  sky.addColorStop(1, '#ddeeff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H * ROAD_HORIZON);
+
+  // Ground below horizon
+  const ground = ctx.createLinearGradient(0, H * ROAD_HORIZON, 0, H);
+  ground.addColorStop(0, '#c8d8b0');
+  ground.addColorStop(1, '#a0b880');
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, H * ROAD_HORIZON, W, H - H * ROAD_HORIZON);
+
+  // Distant mountains silhouette
+  ctx.fillStyle = 'rgba(100,130,160,0.35)';
   ctx.beginPath();
-  ctx.moveTo(W / 2, 0);
-  ctx.lineTo(W / 2, H);
+  ctx.moveTo(0, H * ROAD_HORIZON);
+  const mpts = [0.05,0.18,0.12,0.28,0.22,0.14,0.38,0.25,0.5,0.10,0.62,0.22,0.72,0.13,0.85,0.24,0.92,0.16,1.0,0.20,1.0];
+  for (let i = 0; i < mpts.length - 1; i += 2) {
+    ctx.lineTo(mpts[i] * W, H * ROAD_HORIZON - mpts[i+1] * H * 0.18);
+  }
+  ctx.lineTo(W, H * ROAD_HORIZON);
+  ctx.closePath();
+  ctx.fill();
+
+  // Trees on sides
+  drawTrees();
+}
+
+function drawTrees() {
+  // Simple triangle trees on both sides
+  const treeData = [
+    {x:0.02, depth:0.7}, {x:0.06, depth:0.55}, {x:0.10, depth:0.65},
+    {x:0.14, depth:0.5}, {x:0.18, depth:0.72},
+    {x:0.98, depth:0.7}, {x:0.94, depth:0.55}, {x:0.90, depth:0.65},
+    {x:0.86, depth:0.5}, {x:0.82, depth:0.72},
+  ];
+  for (const t of treeData) {
+    const sy = H * ROAD_HORIZON + t.depth * (H - H * ROAD_HORIZON) * 0.85;
+    const s  = scaleAtY(sy) * 28;
+    const sx = t.x * W;
+    // Trunk
+    ctx.fillStyle = '#6b4423';
+    ctx.fillRect(sx - s*0.12, sy - s*0.3, s*0.24, s*0.3);
+    // Foliage
+    ctx.fillStyle = '#2d6a2d';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - s * 1.4);
+    ctx.lineTo(sx - s * 0.55, sy - s * 0.3);
+    ctx.lineTo(sx + s * 0.55, sy - s * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#3a8a3a';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - s * 1.8);
+    ctx.lineTo(sx - s * 0.42, sy - s * 0.9);
+    ctx.lineTo(sx + s * 0.42, sy - s * 0.9);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// ── Road ────────────────────────────────────
+function drawRoad() {
+  const horizY = H * ROAD_HORIZON;
+  const roadL_top  = W/2 - ROAD_WIDTH_TOP/2  * W;
+  const roadR_top  = W/2 + ROAD_WIDTH_TOP/2  * W;
+  const roadL_bot  = W/2 - ROAD_WIDTH_BOTTOM/2 * W;
+  const roadR_bot  = W/2 + ROAD_WIDTH_BOTTOM/2 * W;
+
+  // Road surface
+  const roadGrad = ctx.createLinearGradient(0, horizY, 0, H);
+  roadGrad.addColorStop(0, '#b0b8c0');
+  roadGrad.addColorStop(1, '#d0d8e0');
+  ctx.fillStyle = roadGrad;
+  ctx.beginPath();
+  ctx.moveTo(roadL_top, horizY);
+  ctx.lineTo(roadR_top, horizY);
+  ctx.lineTo(roadR_bot, H);
+  ctx.lineTo(roadL_bot, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // Road edges (red railings like bridge)
+  ctx.strokeStyle = '#cc2222';
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(roadL_top, horizY); ctx.lineTo(roadL_bot, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(roadR_top, horizY); ctx.lineTo(roadR_bot, H); ctx.stroke();
+
+  // Center dashed line (scrolling)
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([20, 18]);
+  ctx.lineDashOffset = -(state.scrollY % 38);
+  ctx.beginPath();
+  ctx.moveTo(W/2, horizY);
+  ctx.lineTo(W/2, H);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // ── Particles ──────────────────────────────
-  for (const p of state.particles) {
-    ctx.globalAlpha = p.life;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  if (state.phase === 'gate') {
-    drawGateScene();
-  } else if (state.phase === 'battle') {
-    drawBattleScene();
-  }
-
-  // ── Squad (always drawn in both phases) ────
-  drawSquad();
+  // Road shadow at horizon
+  const shadowGrad = ctx.createLinearGradient(0, horizY, 0, horizY + 30);
+  shadowGrad.addColorStop(0, 'rgba(0,0,0,0.18)');
+  shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shadowGrad;
+  ctx.fillRect(0, horizY, W, 30);
 }
 
-// ── Gate scene ─────────────────────────────
-function drawGateScene() {
-  const W = canvas.width;
+// ── Gates ───────────────────────────────────
+function drawGates() {
   for (const row of state.rows) {
-    if (row.passed && row.type !== 'enemies') continue;
-    const screenY = canvas.height * 0.72 + row.worldY + state.worldY;
-    if (screenY > canvas.height + 100 || screenY < -200) continue;
+    if (row.type !== 'gate' || row.passed) continue;
 
-    if (row.type === 'doors') {
-      drawDoorPair(row, screenY, W);
-    } else if (row.type === 'enemies' && !row.passed) {
-      drawEnemyPreview(row, screenY, W);
-    }
+    const distAhead = row.scrollPos - state.scrollY;
+    if (distAhead < -GATE_PASS_ZONE || distAhead > ROW_SPACING * 1.5) continue;
+
+    // Map distAhead to a worldY fraction (0=horizon, 1=bottom)
+    // distAhead=0 means at squad level, distAhead=ROW_SPACING means far ahead
+    const worldYFrac = Math.max(0, Math.min(1,
+      SQUAD_Y_FRAC - (distAhead / ROW_SPACING) * (SQUAD_Y_FRAC - ROAD_HORIZON - 0.05)
+    ));
+
+    const sy = ROAD_HORIZON * H + worldYFrac * (H - ROAD_HORIZON * H);
+    const scale = scaleAtY(sy);
+    const roadHalf = roadHalfAtY(sy);
+
+    // Gate spans the full road width, split in middle
+    const gateH = GATE_H_WORLD * scale;
+    const gateTop = sy - gateH * 0.5;
+    const gateBot = sy + gateH * 0.5;
+    const centerX = W / 2;
+
+    // Left gate
+    drawGatePanel(row.left,  centerX - roadHalf, centerX, gateTop, gateBot, scale);
+    // Right gate
+    drawGatePanel(row.right, centerX, centerX + roadHalf, gateTop, gateBot, scale);
+
+    // Vertical divider post
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(centerX - 3 * scale, gateTop, 6 * scale, gateH);
   }
 }
 
-function drawDoorPair(row, screenY, W) {
-  const leftCX  = W / 2 - DOOR_GAP / 2 - DOOR_WIDTH / 2;
-  const rightCX = W / 2 + DOOR_GAP / 2 + DOOR_WIDTH / 2;
+function drawGatePanel(side, x1, x2, y1, y2, scale) {
+  const isRed = side.op === 'sub';
+  const mainColor = isRed ? '#e8293a' : '#2979e8';
+  const lightColor= isRed ? 'rgba(255,80,100,0.85)' : 'rgba(60,140,255,0.85)';
+  const darkColor = isRed ? '#9b1a25' : '#1a4e9b';
 
-  drawSingleDoor(row.left,  leftCX,  screenY);
-  drawSingleDoor(row.right, rightCX, screenY);
-}
+  // Semi-transparent fill
+  ctx.fillStyle = isRed ? 'rgba(232,41,58,0.22)' : 'rgba(41,121,232,0.22)';
+  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
-function drawSingleDoor(door, cx, cy) {
-  const w = DOOR_WIDTH;
-  const h = DOOR_HEIGHT;
-  const x = cx - w / 2;
-  const y = cy - h / 2;
+  // Top/bottom bars
+  const barH = Math.max(6, 10 * scale);
+  ctx.fillStyle = mainColor;
+  ctx.fillRect(x1, y1, x2 - x1, barH);
+  ctx.fillRect(x1, y2 - barH, x2 - x1, barH);
 
-  const isRed = door.color === 'red';
-  const mainColor  = isRed ? '#ff4757' : '#2ed573';
-  const glowColor  = isRed ? 'rgba(255,71,87,0.35)' : 'rgba(46,213,115,0.35)';
-  const darkColor  = isRed ? '#c0392b' : '#1e9e54';
-
-  // Glow
-  ctx.shadowColor = mainColor;
-  ctx.shadowBlur  = 20;
-
-  // Door frame
+  // Side posts
+  const postW = Math.max(5, 8 * scale);
   ctx.fillStyle = darkColor;
-  ctx.beginPath();
-  ctx.roundRect(x - 4, y - 4, w + 8, h + 8, 10);
-  ctx.fill();
+  ctx.fillRect(x1, y1, postW, y2 - y1);
+  ctx.fillRect(x2 - postW, y1, postW, y2 - y1);
 
-  // Door body
-  const bodyGrad = ctx.createLinearGradient(x, y, x + w, y + h);
-  bodyGrad.addColorStop(0, mainColor);
-  bodyGrad.addColorStop(1, darkColor);
-  ctx.fillStyle = bodyGrad;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 8);
-  ctx.fill();
+  // Label
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  let label = '';
+  if (side.op === 'add') label = `+${side.val}`;
+  else if (side.op === 'sub') label = `-${side.val}`;
+  else if (side.op === 'mul') label = `×${side.val}`;
 
-  ctx.shadowBlur = 0;
-
-  // Text label
-  const label = isRed
-    ? `-${door.value}`
-    : `×${door.value}`;
-
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${door.value >= 10 ? 22 : 26}px 'Segoe UI', sans-serif`;
+  const fontSize = Math.max(14, 28 * scale);
+  ctx.font = `900 ${fontSize}px 'Segoe UI', sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.6)';
-  ctx.shadowBlur  = 6;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillText(label, cx + 2, cy + 2);
+
+  // Main text
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = isRed ? '#ff8888' : '#88aaff';
+  ctx.shadowBlur = 8 * scale;
   ctx.fillText(label, cx, cy);
   ctx.shadowBlur = 0;
 }
 
-function drawEnemyPreview(row, screenY, W) {
-  // Show a small cluster silhouette as "incoming wave" warning
-  ctx.fillStyle = 'rgba(255,100,100,0.15)';
-  ctx.fillRect(0, screenY - 30, W, 60);
-
-  ctx.fillStyle = 'rgba(255,100,100,0.7)';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`⚠ 敌军 ${row.count} 人 即将来袭`, W / 2, screenY);
+// ── Enemies ─────────────────────────────────
+function drawEnemies() {
+  // Sort by y so closer enemies draw on top
+  const sorted = [...state.enemies].sort((a,b) => a.y - b.y);
+  for (const e of sorted) {
+    drawEnemyFigure(e.x, e.y, e.flashTimer > 0);
+  }
 }
 
-// ── Battle scene ────────────────────────────
-function drawBattleScene() {
-  // Draw enemies
-  for (const e of state.enemies) {
-    drawEnemy(e);
-  }
+function drawEnemyFigure(x, y, flash) {
+  const s = scaleAtY(y);
+  const br = ENEMY_R * s;
+  const hr = ENEMY_HEAD_R * s;
 
-  // Draw bullets
+  ctx.shadowColor = flash ? '#fff' : '#e84393';
+  ctx.shadowBlur  = flash ? 16 : 8;
+
+  // Body
+  ctx.fillStyle = flash ? '#fff' : '#c0392b';
+  ctx.beginPath();
+  ctx.ellipse(x, y + br * 0.3, br * 0.65, br * 0.9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = flash ? '#fff' : '#e84393';
+  ctx.beginPath();
+  ctx.arc(x, y - br * 0.6, hr, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Helmet
+  ctx.fillStyle = flash ? '#fff' : '#8b0000';
+  ctx.beginPath();
+  ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.9, hr * 0.55, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+}
+
+// ── Bullets ─────────────────────────────────
+function drawBullets() {
   for (const b of state.bullets) {
     ctx.fillStyle = '#ffe066';
-    ctx.shadowColor = '#ffe066';
-    ctx.shadowBlur  = 8;
+    ctx.shadowColor = '#ffcc00';
+    ctx.shadowBlur  = 10;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, BULLET_RADIUS, 0, Math.PI * 2);
+    ctx.arc(b.x, b.y, BULLET_R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ── Squad ────────────────────────────────────
+function drawSquad() {
+  if (state.units <= 0) return;
+
+  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSX = W / 2 + state.squadX * roadHalfAtY(squadSY);
+  const scale   = scaleAtY(squadSY);
+  const spacing = (UNIT_R * 2 + 3) * scale;
+
+  // Selection circle under squad
+  ctx.strokeStyle = 'rgba(100,220,255,0.5)';
+  ctx.lineWidth = 2;
+  const clusterR = (getClusterRadius(state.units) + 0.8) * spacing;
+  ctx.beginPath();
+  ctx.ellipse(squadSX, squadSY + UNIT_R * scale * 0.5, clusterR, clusterR * 0.35, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw soldiers
+  for (const sol of state.soldiers) {
+    const bob = Math.sin(frameCount * 0.12 + sol.bobPhase) * 1.5 * scale;
+    const sx = squadSX + sol.ox * spacing;
+    const sy = squadSY + sol.oy * spacing + bob;
+    drawSoldierFigure(sx, sy, scale);
   }
 }
 
-function drawEnemy(e) {
-  const flash = e.flashTimer > 0;
-  const bodyColor = flash ? '#fff' : '#e84393';
-  const headColor = flash ? '#fff' : '#c0392b';
+function drawSoldierFigure(x, y, scale) {
+  const br = UNIT_R * scale;
+  const hr = HEAD_R * scale;
 
-  ctx.shadowColor = '#e84393';
+  ctx.shadowColor = '#4fc3f7';
   ctx.shadowBlur  = 10;
 
   // Body
-  ctx.fillStyle = bodyColor;
+  ctx.fillStyle = '#1565c0';
   ctx.beginPath();
-  ctx.ellipse(e.x, e.y + 4, e.radius * 0.6, e.radius * 0.85, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + br * 0.3, br * 0.65, br * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Head
-  ctx.fillStyle = headColor;
+  ctx.fillStyle = '#e0e0e0';
   ctx.beginPath();
-  ctx.arc(e.x, e.y - e.radius * 0.55, e.radius * 0.42, 0, Math.PI * 2);
+  ctx.arc(x, y - br * 0.6, hr, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Helmet (blue)
+  ctx.fillStyle = '#1976d2';
+  ctx.beginPath();
+  ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.95, hr * 0.58, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // Gun flash
+  ctx.fillStyle = '#ffe066';
+  ctx.shadowColor = '#ffe066';
+  ctx.shadowBlur  = 6;
+  ctx.beginPath();
+  ctx.arc(x, y - br * 0.1, br * 0.18, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.shadowBlur = 0;
 }
 
-// ── Squad draw ─────────────────────────────
-function drawSquad() {
-  if (state.units <= 0) return;
-  const positions = getSquadPositions();
-  for (const pos of positions) {
-    drawUnit(pos.x, pos.y);
+// ── Particles ────────────────────────────────
+function drawParticles() {
+  for (const p of state.particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+    ctx.fill();
   }
+  ctx.globalAlpha = 1;
 }
 
-function drawUnit(x, y) {
-  ctx.shadowColor = '#4fc3f7';
-  ctx.shadowBlur  = 12;
+// ── Gate flash overlay ───────────────────────
+function drawGateFlash() {
+  if (!state.gateFlash) return;
+  const t = state.gateFlash.timer / 18;
+  const color = state.gateFlash.color === 'red'
+    ? `rgba(255,60,60,${t * 0.28})`
+    : `rgba(60,120,255,${t * 0.28})`;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, W, H);
+}
 
-  // Body
-  ctx.fillStyle = '#4fc3f7';
-  ctx.beginPath();
-  ctx.ellipse(x, y + 3, UNIT_RADIUS * 0.6, UNIT_RADIUS * 0.85, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Head
-  ctx.fillStyle = '#81d4fa';
-  ctx.beginPath();
-  ctx.arc(x, y - UNIT_RADIUS * 0.55, UNIT_RADIUS * 0.42, 0, Math.PI * 2);
-  ctx.fill();
-
+// ── Wave label ───────────────────────────────
+function drawWaveLabel() {
+  const t = Math.min(1, state.waveLabel.timer / 30);
+  ctx.globalAlpha = t;
+  ctx.fillStyle = '#ff4757';
+  ctx.font = `bold ${Math.round(W * 0.045)}px 'Segoe UI', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#ff0000';
+  ctx.shadowBlur = 20;
+  ctx.fillText(state.waveLabel.text, W / 2, H * 0.42);
   ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
 }
 
 // ══════════════════════════════════════════════
@@ -687,6 +952,5 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// ── Start ─────────────────────────────────
 startLevel(0);
 loop();
