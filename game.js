@@ -377,7 +377,7 @@ function spawnEnemiesAtScroll(count, scrollPos) {
       cols,
       waveScrollPos: scrollPos,
       offsetX: (col - (cols - 1) / 2) * spacingX + (Math.random() - 0.5) * 8,
-      offsetY: row * spacingY,
+      offsetY: -row * spacingY,  // negative = toward horizon (screen up)
       alive: true,
       flashTimer: 0,
     });
@@ -407,8 +407,7 @@ function enemyScreenPos(e) {
   // offsetX is in pixels at squad level; scale it by perspective
   const normalizedX = e.offsetX / (W * ROAD_WIDTH_BOTTOM / 2);
   const sx = W / 2 + normalizedX * roadHalf;
-  // offsetY is row index * spacing; scale by perspective
-  const sy = baseY + e.offsetY * scale;
+  const sy = baseY + e.offsetY;
 
   return { x: sx, y: sy, scale };
 }
