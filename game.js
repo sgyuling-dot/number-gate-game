@@ -130,8 +130,8 @@ const LEVELS = [
 // ══════════════════════════════════════════════
 //  CONSTANTS
 // ══════════════════════════════════════════════
-const ROAD_WIDTH_BOTTOM = 0.88;  // fraction of W at bottom
-const ROAD_WIDTH_TOP    = 0.28;  // fraction of W at top
+const ROAD_WIDTH_BOTTOM = 0.44;  // fraction of W at bottom
+const ROAD_WIDTH_TOP    = 0.14;  // fraction of W at top
 const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
 const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
 const SCROLL_SPEED      = 3.5;   // world scroll px/frame
@@ -290,8 +290,8 @@ window.addEventListener('mousemove', e => {
   if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.clientX - lastDragX;
   lastDragX = e.clientX;
-  const roadPx = roadHalfAtY(H * SQUAD_Y_FRAC) * 2;
-  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + dx / roadPx * 2));
+  // Move squad: 1px drag = move 2px on screen, converted to normalized -1..1
+  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + (dx * 2) / W));
 });
 
 canvas.addEventListener('touchstart', e => {
@@ -303,8 +303,7 @@ window.addEventListener('touchmove', e => {
   if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.touches[0].clientX - lastDragX;
   lastDragX = e.touches[0].clientX;
-  const roadPx = roadHalfAtY(H * SQUAD_Y_FRAC) * 2;
-  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + dx / roadPx * 2));
+  state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + (dx * 2) / W));
 }, { passive: true });
 
 // ══════════════════════════════════════════════
@@ -426,9 +425,10 @@ function update() {
 
 // ── Gate phase ─────────────────────────────
 function updateGate() {
-  // If a wave intro label is counting down, keep scrolling/moving but wait before battle
+  state.scrollY += SCROLL_SPEED;
+
+  // If a wave intro label is counting down, pause row processing but keep scrolling
   if (state.waveLabel) {
-    state.scrollY += SCROLL_SPEED;
     state.waveLabel.timer--;
     if (state.waveLabel.timer <= 0) {
       const count = state.waveLabel.pendingCount;
@@ -440,8 +440,6 @@ function updateGate() {
     }
     return;
   }
-
-  state.scrollY += SCROLL_SPEED;
 
   // Check rows
   for (const row of state.rows) {
