@@ -130,8 +130,8 @@ const LEVELS = [
 // ══════════════════════════════════════════════
 //  CONSTANTS
 // ══════════════════════════════════════════════
-const ROAD_WIDTH_BOTTOM = 0.62;  // fraction of W at bottom
-const ROAD_WIDTH_TOP    = 0.22;  // fraction of W at top
+const ROAD_WIDTH_BOTTOM = 0.88;  // fraction of W at bottom
+const ROAD_WIDTH_TOP    = 0.28;  // fraction of W at top
 const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
 const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
 const SCROLL_SPEED      = 3.5;   // world scroll px/frame
@@ -287,10 +287,9 @@ let lastDragX  = 0;
 canvas.addEventListener('mousedown', e => { dragActive = true; lastDragX = e.clientX; });
 window.addEventListener('mouseup',   () => { dragActive = false; });
 window.addEventListener('mousemove', e => {
-  if (!dragActive || state.phase !== 'gate') return;
+  if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.clientX - lastDragX;
   lastDragX = e.clientX;
-  // Convert pixel dx to normalized road movement
   const roadPx = roadHalfAtY(H * SQUAD_Y_FRAC) * 2;
   state.squadX = Math.max(-0.9, Math.min(0.9, state.squadX + dx / roadPx * 2));
 });
@@ -301,7 +300,7 @@ canvas.addEventListener('touchstart', e => {
 }, { passive: true });
 window.addEventListener('touchend', () => { dragActive = false; });
 window.addEventListener('touchmove', e => {
-  if (!dragActive || state.phase !== 'gate') return;
+  if (!dragActive || state.phase === 'battle' || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.touches[0].clientX - lastDragX;
   lastDragX = e.touches[0].clientX;
   const roadPx = roadHalfAtY(H * SQUAD_Y_FRAC) * 2;
@@ -639,17 +638,22 @@ function drawBackground() {
 }
 
 function drawTrees() {
-  // Simple triangle trees on both sides
-  const treeData = [
-    {x:0.02, depth:0.7}, {x:0.06, depth:0.55}, {x:0.10, depth:0.65},
-    {x:0.14, depth:0.5}, {x:0.18, depth:0.72},
-    {x:0.98, depth:0.7}, {x:0.94, depth:0.55}, {x:0.90, depth:0.65},
-    {x:0.86, depth:0.5}, {x:0.82, depth:0.72},
-  ];
+  // Place trees just outside the road edges at each depth
+  const depthData = [0.70, 0.55, 0.65, 0.50, 0.72];
+  const treeData = [];
+  for (const depth of depthData) {
+    const sy = H * ROAD_HORIZON + depth * (H - H * ROAD_HORIZON) * 0.85;
+    const roadEdge = roadHalfAtY(sy);
+    const margin = 18 + Math.random() * 0;
+    // left side
+    treeData.push({ sx: W/2 - roadEdge - margin, sy, depth });
+    // right side
+    treeData.push({ sx: W/2 + roadEdge + margin, sy, depth });
+  }
   for (const t of treeData) {
-    const sy = H * ROAD_HORIZON + t.depth * (H - H * ROAD_HORIZON) * 0.85;
+    const sy = t.sy;
     const s  = scaleAtY(sy) * 28;
-    const sx = t.x * W;
+    const sx = t.sx;
     // Trunk
     ctx.fillStyle = '#6b4423';
     ctx.fillRect(sx - s*0.12, sy - s*0.3, s*0.24, s*0.3);
