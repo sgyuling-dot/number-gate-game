@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数字门大作战</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="hud">
+    <span id="unit-label">单位数</span>
+    <span id="unit-count">10</span>
+    <span id="level-label">第 <span id="level-num">1</span> 关</span>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="overlay" class="hidden">
+    <div id="overlay-box">
+      <div id="overlay-icon"></div>
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-message"></p>
+      <button id="overlay-btn"></button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
