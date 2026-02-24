@@ -427,6 +427,21 @@ function update() {
 
 // ── Gate phase ─────────────────────────────
 function updateGate() {
+  // If a wave intro label is counting down, keep scrolling/moving but wait before battle
+  if (state.waveLabel) {
+    state.scrollY += SCROLL_SPEED;
+    state.waveLabel.timer--;
+    if (state.waveLabel.timer <= 0) {
+      const count = state.waveLabel.pendingCount;
+      state.waveLabel = null;
+      state.phase = 'battle';
+      spawnEnemies(count);
+      state.bullets = [];
+      state.shootTimer = 0;
+    }
+    return;
+  }
+
   state.scrollY += SCROLL_SPEED;
 
   // Check rows
@@ -449,11 +464,8 @@ function updateGate() {
     } else if (row.type === 'wave') {
       if (distAhead <= 0) {
         row.passed = true;
-        state.phase = 'battle';
-        spawnEnemies(row.count);
-        state.bullets = [];
-        state.shootTimer = 0;
-        state.waveLabel = { text: `敌军来袭！${row.count} 人`, timer: 90 };
+        // Show intro label first; battle starts after label fades
+        state.waveLabel = { text: `敌军来袭！${row.count} 人`, timer: 70, pendingCount: row.count };
         return;
       }
     }
@@ -465,11 +477,6 @@ function updateGate() {
 
 // ── Battle phase ────────────────────────────
 function updateBattle() {
-  if (state.waveLabel) {
-    state.waveLabel.timer--;
-    if (state.waveLabel.timer <= 0) state.waveLabel = null;
-  }
-
   state.shootTimer++;
 
   // Enemies advance
@@ -591,12 +598,12 @@ function draw() {
   } else if (state.phase === 'battle') {
     drawEnemies();
     drawBullets();
-    if (state.waveLabel) drawWaveLabel();
   }
 
   drawParticles();
   drawSquad();
   drawGateFlash();
+  if (state.waveLabel) drawWaveLabel();
 }
 
 // ── Background ──────────────────────────────
