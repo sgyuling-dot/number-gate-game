@@ -454,18 +454,25 @@ function spawnEnemiesAtScroll(count, scrollPos) {
   }
 }
 
+// Perspective t: maps distAhead (world units) → t in [0,1]
+// t=0 at horizon, t=1 at squad level.
+// Uses a hyperbolic curve so objects accelerate as they approach,
+// matching true perspective projection.
+const PERSP_K = 0.18;  // controls how "deep" the vanishing point feels
+function perspT(distAhead) {
+  // Normalise distAhead to [0,1] range relative to ROW_SPACING
+  const d = Math.max(0, distAhead / ROW_SPACING);
+  // Hyperbolic: t = (1/(d + K) - 1/(1 + K)) / (1/K - 1/(1 + K))
+  // This gives t=0 when d=1 (far) and t=1 when d=0 (close)
+  const tFar   = 1 / (1 + PERSP_K);
+  const tClose = 1 / PERSP_K;
+  return Math.max(0, Math.min(1.2, (1 / (d + PERSP_K) - tFar) / (tClose - tFar)));
+}
+
 // Convert an enemy's world position to current screen position
 function enemyScreenPos(e) {
-  // distAhead > 0 means enemy is ahead of (above) the squad
-  // distAhead = ROW_SPACING  → near horizon
-  // distAhead = 0            → at squad level
-  // distAhead < 0            → behind/below squad (should be removed)
   const distAhead = e.waveScrollPos - state.scrollY;
-
-  // t: 0 = at horizon, 1 = at squad screen Y
-  // When distAhead = ROW_SPACING → t = 0 (horizon)
-  // When distAhead = 0           → t = 1 (squad level)
-  const t = Math.max(0, Math.min(1.2, 1 - distAhead / ROW_SPACING));
+  const t = perspT(distAhead);
 
   const horizonY = ROAD_HORIZON * H;
   const squadY   = SQUAD_Y_FRAC * H;
@@ -474,7 +481,6 @@ function enemyScreenPos(e) {
   const scale    = scaleAtY(baseY);
   const roadHalf = roadHalfAtY(baseY);
 
-  // offsetX is in pixels at squad level; scale it by perspective
   const normalizedX = e.offsetX / (W * ROAD_WIDTH_BOTTOM / 2);
   const sx = W / 2 + normalizedX * roadHalf;
   const sy = baseY + e.offsetY;
@@ -844,13 +850,9 @@ function drawGates() {
     const distAhead = row.scrollPos - state.scrollY;
     if (distAhead < -GATE_PASS_ZONE || distAhead > ROW_SPACING * 1.5) continue;
 
-    // Map distAhead to a worldY fraction (0=horizon, 1=bottom)
-    // distAhead=0 means at squad level, distAhead=ROW_SPACING means far ahead
-    const worldYFrac = Math.max(0, Math.min(1,
-      SQUAD_Y_FRAC - (distAhead / ROW_SPACING) * (SQUAD_Y_FRAC - ROAD_HORIZON - 0.05)
-    ));
-
-    const sy = ROAD_HORIZON * H + worldYFrac * (H - ROAD_HORIZON * H);
+    // Use perspective mapping — same as enemyScreenPos
+    const t  = perspT(distAhead);
+    const sy = ROAD_HORIZON * H + t * (SQUAD_Y_FRAC * H - ROAD_HORIZON * H);
     const scale = scaleAtY(sy);
     const roadHalf = roadHalfAtY(sy);
 
@@ -1097,16 +1099,23 @@ function drawColorOrbs() {
 
 // ── Color Combo HUD (bottom-right) ───────────
 function drawColorComboHUD() {
-  const PAD    = 14;
-  const SLOT_R = 9;
-  const SLOT_GAP = 6;
-  const ROW_H  = 28;
-  const panelW = 140;
-  const colors = ['red', 'blue'];
+  const PAD      = 14;
+  const PIP_R    = 9;   // radius of each token pip
+  const PIP_GAP  = 6;
+  const ROW_H    = 30;
+  const BUFF_R   = 10;  // radius of each stacked-buff orb
+  const BUFF_GAP = 6;
+  const colors   = ['red', 'blue'];
 
-  // Height: 2 token rows + buff rows
+  // Panel width must fit: label(16) + 3 pips + padding
+  const panelW = PAD + 16 + 3 * (PIP_R * 2 + PIP_GAP) + PAD;
+
+  // Buff orbs row height (only if there are buffs)
   const buffCount = state.activeBuffs.length;
-  const panelH = PAD + colors.length * ROW_H + (buffCount > 0 ? 8 + buffCount * 22 : 0) + PAD;
+  const buffRowH  = buffCount > 0 ? 8 + BUFF_R * 2 + 8 : 0;
+
+  // Title row + 2 pip rows + buff row
+  const panelH = PAD + 14 + colors.length * ROW_H + buffRowH + PAD;
 
   const px = W - panelW - 12;
   const py = H - panelH - 12;
@@ -1133,71 +1142,116 @@ function drawColorComboHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.fillText('颜色组合', px + PAD, py + PAD - 2);
 
-  // Token pip rows
+  // ── Token pip rows ──────────────────────────
   let rowY = py + PAD + 14;
   for (const color of colors) {
     const count  = state.colorTokens[color];
     const isRed  = color === 'red';
     const filled = isRed ? '#ff4444' : '#4488ff';
-    const empty  = isRed ? 'rgba(255,80,80,0.2)' : 'rgba(60,130,255,0.2)';
+    const glow   = isRed ? '#ff0000' : '#0055ff';
+    const empty  = isRed ? 'rgba(255,80,80,0.18)' : 'rgba(60,130,255,0.18)';
     const label  = isRed ? '红' : '蓝';
+
+    const cy = rowY + ROW_H / 2;
 
     // Color label
     ctx.font = '700 12px "Segoe UI", sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = filled;
-    ctx.fillText(label, px + PAD, rowY + ROW_H / 2);
+    ctx.fillText(label, px + PAD, cy);
 
-    // 3 pips
+    // 3 pip orbs
     for (let i = 0; i < 3; i++) {
-      const cx = px + PAD + 22 + i * (SLOT_R * 2 + SLOT_GAP);
-      const cy = rowY + ROW_H / 2;
-      ctx.shadowColor = filled;
-      ctx.shadowBlur  = i < count ? 8 : 0;
-      ctx.fillStyle   = i < count ? filled : empty;
-      ctx.beginPath();
-      ctx.arc(cx, cy, SLOT_R, 0, Math.PI * 2);
-      ctx.fill();
+      const cx = px + PAD + 20 + i * (PIP_R * 2 + PIP_GAP) + PIP_R;
+      const active = i < count;
+
+      if (active) {
+        // Glow
+        ctx.shadowColor = glow;
+        ctx.shadowBlur  = 12;
+        // Rim
+        ctx.fillStyle = isRed ? '#ffaaaa' : '#aaccff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, PIP_R + 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Core
+        ctx.fillStyle = filled;
+        ctx.beginPath();
+        ctx.arc(cx, cy, PIP_R, 0, Math.PI * 2);
+        ctx.fill();
+        // Shine
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath();
+        ctx.arc(cx - PIP_R * 0.28, cy - PIP_R * 0.28, PIP_R * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.shadowBlur = 0;
+        ctx.fillStyle  = empty;
+        ctx.beginPath();
+        ctx.arc(cx, cy, PIP_R, 0, Math.PI * 2);
+        ctx.fill();
+        // Empty ring
+        ctx.strokeStyle = isRed ? 'rgba(255,80,80,0.35)' : 'rgba(60,130,255,0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, PIP_R, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
     ctx.shadowBlur = 0;
-
     rowY += ROW_H;
   }
 
-  // Divider before buff list
+  // ── Stacked buff orbs ───────────────────────
   if (buffCount > 0) {
+    // Divider
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(px + PAD, rowY + 4);
     ctx.lineTo(px + panelW - PAD, rowY + 4);
     ctx.stroke();
-    rowY += 12;
 
-    // Stacked buffs list
-    ctx.font = '700 12px "Segoe UI", sans-serif';
-    ctx.textBaseline = 'middle';
+    // Draw buff orbs left-to-right, wrapping if needed
+    const orbY  = rowY + 8 + BUFF_R;
+    let   orbX  = px + PAD + BUFF_R;
+    const step  = BUFF_R * 2 + BUFF_GAP;
+    const maxPerRow = Math.floor((panelW - PAD * 2) / step);
+
     for (let i = 0; i < buffCount; i++) {
       const buff  = state.activeBuffs[i];
       const isRed = buff.color === 'red';
-      const dotColor = isRed ? '#ff4444' : '#4488ff';
-      const cy = rowY + 10;
+      const core  = isRed ? '#ff4444' : '#4488ff';
+      const glow  = isRed ? '#ff0000' : '#0055ff';
+      const rim   = isRed ? '#ffaaaa' : '#aaccff';
 
-      // Dot indicator
-      ctx.fillStyle = dotColor;
-      ctx.shadowColor = dotColor;
-      ctx.shadowBlur  = 6;
+      const col = i % maxPerRow;
+      const row = Math.floor(i / maxPerRow);
+      const bx  = px + PAD + BUFF_R + col * step;
+      const by  = orbY + row * (BUFF_R * 2 + BUFF_GAP);
+
+      // Glow
+      ctx.shadowColor = glow;
+      ctx.shadowBlur  = 14;
+      // Rim
+      ctx.fillStyle = rim;
       ctx.beginPath();
-      ctx.arc(px + PAD + 6, cy, 5, 0, Math.PI * 2);
+      ctx.arc(bx, by, BUFF_R + 2, 0, Math.PI * 2);
       ctx.fill();
+      // Core
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(bx, by, BUFF_R, 0, Math.PI * 2);
+      ctx.fill();
+      // Shine
       ctx.shadowBlur = 0;
-
-      // Buff label
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(buff.label, px + PAD + 16, cy);
-
-      rowY += 22;
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.arc(bx - BUFF_R * 0.3, by - BUFF_R * 0.3, BUFF_R * 0.35, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.shadowBlur = 0;
   }
 
   ctx.textAlign = 'left';
