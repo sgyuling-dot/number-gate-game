@@ -23,6 +23,14 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
+// ── Combo mode toggle (live) ─────────────────
+comboModeCheckbox.addEventListener('change', () => {
+  state.comboMode = comboModeCheckbox.checked;
+  if (!state.comboMode) {
+    state.colorOrbs = [];
+  }
+});
+
 // ══════════════════════════════════════════════
 //  LEVEL DATA
 //  Each level: array of rows (gate or wave)
