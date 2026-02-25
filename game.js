@@ -5,13 +5,14 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 
-const unitCountEl = document.getElementById('unit-count');
-const levelNumEl  = document.getElementById('level-num');
-const overlay     = document.getElementById('overlay');
-const overlayIcon = document.getElementById('overlay-icon');
-const overlayTitle= document.getElementById('overlay-title');
-const overlayMsg  = document.getElementById('overlay-message');
-const overlayBtn  = document.getElementById('overlay-btn');
+const unitCountEl      = document.getElementById('unit-count');
+const levelNumEl       = document.getElementById('level-num');
+const overlay          = document.getElementById('overlay');
+const overlayIcon      = document.getElementById('overlay-icon');
+const overlayTitle     = document.getElementById('overlay-title');
+const overlayMsg       = document.getElementById('overlay-message');
+const overlayBtn       = document.getElementById('overlay-btn');
+const comboModeCheckbox= document.getElementById('combo-mode-checkbox');
 
 // ── Canvas resize ────────────────────────────
 let W, H;
@@ -193,6 +194,11 @@ function defaultState(levelIdx) {
     soldiers: [],        // animated soldier positions (screen)
     gateFlash: null,     // { color, timer }
     waveLabel: null,     // { text, timer }
+    // ── Combo mode ──────────────────────────
+    comboMode: false,
+    colorTokens: { red: 0, blue: 0 },  // pending tokens 0-2
+    activeBuffs: [],                    // [{ color, label }]
+    colorOrbs: [],                      // [{ x, y, vx, vy, color, life }]
   };
 }
 
@@ -202,11 +208,14 @@ function defaultState(levelIdx) {
 const ROW_SPACING = 420;  // world-scroll units between rows
 
 function startLevel(levelIdx) {
+  const prevBuffs = state.activeBuffs || [];
   state = defaultState(levelIdx);
-  state.squadX = W / 2;   // start at screen center in pixels
-  const def = LEVELS[levelIdx];
+  state.squadX   = W / 2;
+  state.comboMode = comboModeCheckbox.checked;
+  // Carry stacked buffs across levels for progression feel
+  state.activeBuffs = state.comboMode ? prevBuffs : [];
 
-  // Assign scroll positions to each row
+  const def = LEVELS[levelIdx];
   state.rows = def.rows.map((row, i) => ({
     ...row,
     scrollPos: (i + 1) * ROW_SPACING,
@@ -353,9 +362,62 @@ function applyGate(side) {
   updateHUD();
   buildSoldiers();
 
+  if (state.comboMode) {
+    awardColorToken(color);
+  }
+
   if (state.units <= 0) {
     setTimeout(gameOver, 300);
   }
+}
+
+// ══════════════════════════════════════════════
+//  COLOR COMBO SYSTEM
+// ══════════════════════════════════════════════
+const COLOR_ORB_R    = 9;
+const COLOR_ORB_LIFE = 300;  // frames before orb fades
+
+function awardColorToken(color) {
+  state.colorTokens[color]++;
+  spawnTokenParticles(color);
+  if (state.colorTokens[color] >= 3) {
+    state.colorTokens[color] = 0;
+    applyColorBuff(color);
+  }
+}
+
+function applyColorBuff(color) {
+  if (color === 'red') {
+    state.units = Math.min(MAX_UNITS, state.units + 5);
+    state.activeBuffs.push({ color: 'red', label: '+5' });
+  } else {
+    state.units = Math.min(MAX_UNITS, state.units * 2);
+    state.activeBuffs.push({ color: 'blue', label: '×2' });
+  }
+  updateHUD();
+  buildSoldiers();
+  // Flash the screen briefly with combo color
+  state.gateFlash = { color, timer: 24 };
+}
+
+function spawnTokenParticles(color) {
+  const cx = state.squadX;
+  const cy = H * SQUAD_Y_FRAC - 30;
+  const c  = color === 'red' ? '#ff5555' : '#5599ff';
+  spawnParticles(cx, cy, c, 8);
+}
+
+function spawnColorOrb(x, y) {
+  const color = Math.random() < 0.5 ? 'red' : 'blue';
+  const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
+  const speed = 2 + Math.random() * 2;
+  state.colorOrbs.push({
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    color,
+    life: COLOR_ORB_LIFE,
+  });
 }
 
 // ══════════════════════════════════════════════
@@ -513,6 +575,9 @@ function updateWorld() {
       const dx = b.x - pos.x, dy = b.y - pos.y;
       if (dx*dx + dy*dy < (BULLET_R + er) ** 2) {
         spawnParticles(pos.x, pos.y, '#ff6b35', 6);
+        if (state.comboMode && Math.random() < 0.2) {
+          spawnColorOrb(pos.x, pos.y);
+        }
         state.enemies.splice(ei, 1);
         hit = true;
         break;
@@ -546,6 +611,42 @@ function updateWorld() {
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
     const pos = enemyScreenPos(state.enemies[ei]);
     if (pos.y > H + 60) state.enemies.splice(ei, 1);
+  }
+
+  // ── Color orbs (combo mode) ───────────────
+  if (state.comboMode) {
+    const squadSY2  = H * SQUAD_Y_FRAC;
+    const squadSX2  = state.squadX;
+    const scale2    = scaleAtY(squadSY2);
+    const collectR  = (getClusterRadius(state.units) + 1) * scale2 * (UNIT_R * 2 + 3) + COLOR_ORB_R + 10;
+
+    for (let oi = state.colorOrbs.length - 1; oi >= 0; oi--) {
+      const orb = state.colorOrbs[oi];
+      orb.x  += orb.vx;
+      orb.y  += orb.vy;
+      orb.vy += 0.04;  // gentle gravity
+      orb.life--;
+
+      // Wall bounce (left/right road edges at orb height)
+      const roadHalfOrb = roadHalfAtY(orb.y);
+      const leftEdge    = W / 2 - roadHalfOrb;
+      const rightEdge   = W / 2 + roadHalfOrb;
+      if (orb.x - COLOR_ORB_R < leftEdge)  { orb.x = leftEdge  + COLOR_ORB_R; orb.vx = Math.abs(orb.vx); }
+      if (orb.x + COLOR_ORB_R > rightEdge) { orb.x = rightEdge - COLOR_ORB_R; orb.vx = -Math.abs(orb.vx); }
+
+      // Remove if expired or fell below screen
+      if (orb.life <= 0 || orb.y > H + 60) {
+        state.colorOrbs.splice(oi, 1);
+        continue;
+      }
+
+      // Squad collision
+      const dx = orb.x - squadSX2, dy = orb.y - squadSY2;
+      if (dx * dx + dy * dy < collectR * collectR) {
+        awardColorToken(orb.color);
+        state.colorOrbs.splice(oi, 1);
+      }
+    }
   }
 
   // ── Level complete when all rows passed and no enemies left ──
@@ -602,10 +703,13 @@ function draw() {
   drawGates();
   drawEnemies();
   drawBullets();
+  drawColorOrbs();
 
   drawParticles();
   drawSquad();
   drawGateFlash();
+
+  if (state.comboMode) drawColorComboHUD();
 }
 
 // ── Background ──────────────────────────────
@@ -941,6 +1045,170 @@ function drawGateFlash() {
     : `rgba(60,120,255,${t * 0.28})`;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, W, H);
+}
+
+// ── Color Orbs ───────────────────────────────
+function drawColorOrbs() {
+  if (!state.comboMode) return;
+  for (const orb of state.colorOrbs) {
+    const alpha = Math.min(1, orb.life / 60);
+    const isRed = orb.color === 'red';
+    const innerColor = isRed ? '#ff4444' : '#4488ff';
+    const glowColor  = isRed ? '#ff0000' : '#0066ff';
+    const rimColor   = isRed ? '#ffaaaa' : '#aaccff';
+
+    ctx.globalAlpha = alpha;
+
+    // Glow
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 18;
+
+    // Outer rim
+    ctx.fillStyle = rimColor;
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, COLOR_ORB_R + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = innerColor;
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, COLOR_ORB_R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Shine highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(orb.x - COLOR_ORB_R * 0.3, orb.y - COLOR_ORB_R * 0.3, COLOR_ORB_R * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Color Combo HUD (bottom-right) ───────────
+function drawColorComboHUD() {
+  const PAD    = 14;
+  const SLOT_R = 9;
+  const SLOT_GAP = 6;
+  const ROW_H  = 28;
+  const panelW = 140;
+  const colors = ['red', 'blue'];
+
+  // Height: 2 token rows + buff rows
+  const buffCount = state.activeBuffs.length;
+  const panelH = PAD + colors.length * ROW_H + (buffCount > 0 ? 8 + buffCount * 22 : 0) + PAD;
+
+  const px = W - panelW - 12;
+  const py = H - panelH - 12;
+
+  // Panel background
+  ctx.globalAlpha = 0.82;
+  ctx.fillStyle = 'rgba(10, 14, 30, 0.88)';
+  roundRect(px, py, panelW, panelH, 12);
+  ctx.fill();
+
+  // Border
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  roundRect(px, py, panelW, panelH, 12);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+
+  // Title
+  ctx.font = '700 11px "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('颜色组合', px + PAD, py + PAD - 2);
+
+  // Token pip rows
+  let rowY = py + PAD + 14;
+  for (const color of colors) {
+    const count  = state.colorTokens[color];
+    const isRed  = color === 'red';
+    const filled = isRed ? '#ff4444' : '#4488ff';
+    const empty  = isRed ? 'rgba(255,80,80,0.2)' : 'rgba(60,130,255,0.2)';
+    const label  = isRed ? '红' : '蓝';
+
+    // Color label
+    ctx.font = '700 12px "Segoe UI", sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = filled;
+    ctx.fillText(label, px + PAD, rowY + ROW_H / 2);
+
+    // 3 pips
+    for (let i = 0; i < 3; i++) {
+      const cx = px + PAD + 22 + i * (SLOT_R * 2 + SLOT_GAP);
+      const cy = rowY + ROW_H / 2;
+      ctx.shadowColor = filled;
+      ctx.shadowBlur  = i < count ? 8 : 0;
+      ctx.fillStyle   = i < count ? filled : empty;
+      ctx.beginPath();
+      ctx.arc(cx, cy, SLOT_R, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    rowY += ROW_H;
+  }
+
+  // Divider before buff list
+  if (buffCount > 0) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + PAD, rowY + 4);
+    ctx.lineTo(px + panelW - PAD, rowY + 4);
+    ctx.stroke();
+    rowY += 12;
+
+    // Stacked buffs list
+    ctx.font = '700 12px "Segoe UI", sans-serif';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < buffCount; i++) {
+      const buff  = state.activeBuffs[i];
+      const isRed = buff.color === 'red';
+      const dotColor = isRed ? '#ff4444' : '#4488ff';
+      const cy = rowY + 10;
+
+      // Dot indicator
+      ctx.fillStyle = dotColor;
+      ctx.shadowColor = dotColor;
+      ctx.shadowBlur  = 6;
+      ctx.beginPath();
+      ctx.arc(px + PAD + 6, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Buff label
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(buff.label, px + PAD + 16, cy);
+
+      rowY += 22;
+    }
+  }
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+// Helper: draw a rounded rectangle path
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
 
 // ── Wave label ───────────────────────────────

@@ -72,6 +72,44 @@ body {
   font-weight: 500;
 }
 
+/* ── Combo Mode Toggle ─────────────────────── */
+#combo-mode-toggle {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 20px;
+  padding: 6px 18px;
+  pointer-events: all;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#combo-mode-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+#combo-mode-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #a78bfa;
+  cursor: pointer;
+}
+
+#combo-mode-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
 /* ── Overlay ───────────────────────────────── */
 #overlay {
   position: fixed;
