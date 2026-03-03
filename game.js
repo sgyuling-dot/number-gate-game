@@ -158,9 +158,9 @@ const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
 const MAX_UNITS         = 20;
 
 // ── Bottom stack constants ──────────────────
-const STACK_ORB_R       = 16;    // radius of orbs in the bottom stack
-const STACK_ORB_GAP     = 4;     // gap between stacked orbs
-const STACK_MAX_HEIGHT_FRAC = 0.12; // max fraction of H the stack can push up
+const STACK_ORB_R       = 3;     // radius of orbs in the bottom stack
+const STACK_ORB_GAP     = 1;     // gap between stacked orbs
+const STACK_MAX_HEIGHT_FRAC = 0.55; // max fraction of H the stack can push up
 
 // ══════════════════════════════════════════════
 //  PERSPECTIVE HELPERS
@@ -201,7 +201,7 @@ function getStackHeightPx() {
 
 function getEffectiveSquadY() {
   const penalty = Math.min(getStackHeightPx(), H * STACK_MAX_HEIGHT_FRAC);
-  return H * SQUAD_Y_FRAC - penalty;
+  return Math.max(H * 0.22, H * SQUAD_Y_FRAC - penalty);
 }
 
 // ══════════════════════════════════════════════
