@@ -454,17 +454,10 @@ function spawnEnemiesAtScroll(count, scrollPos) {
 
 // Perspective t: maps distAhead (world units) → t in [0,1]
 // t=0 at horizon, t=1 at squad level.
-// Uses a hyperbolic curve so objects accelerate as they approach,
-// matching true perspective projection.
-const PERSP_K = 0.18;  // controls how "deep" the vanishing point feels
+// Linear mapping so objects scroll at uniform speed on screen.
 function perspT(distAhead) {
-  // Normalise distAhead to [0,1] range relative to ROW_SPACING
   const d = Math.max(0, distAhead / ROW_SPACING);
-  // Hyperbolic: t = (1/(d + K) - 1/(1 + K)) / (1/K - 1/(1 + K))
-  // This gives t=0 when d=1 (far) and t=1 when d=0 (close)
-  const tFar   = 1 / (1 + PERSP_K);
-  const tClose = 1 / PERSP_K;
-  return Math.max(0, Math.min(1.2, (1 / (d + PERSP_K) - tFar) / (tClose - tFar)));
+  return Math.max(0, Math.min(1.2, 1 - d));
 }
 
 // Convert an enemy's world position to current screen position
