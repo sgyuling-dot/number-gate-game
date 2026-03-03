@@ -39,99 +39,99 @@ comboModeCheckbox.addEventListener('change', () => {
 //  wave: { type:'wave', count:N }
 // ══════════════════════════════════════════════
 const LEVELS = [
-  // Level 1 — tutorial, 6 waves
+  // Level 1 — tutorial (red=sub, blue=mul only)
   { rows:[
-    {type:'gate', left:{op:'sub',val:1}, right:{op:'add',val:2}},
-    {type:'wave', count:3},
-    {type:'gate', left:{op:'add',val:3}, right:{op:'sub',val:1}},
+    {type:'gate', left:{op:'sub',val:1}, right:{op:'mul',val:2}},
     {type:'wave', count:4},
     {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:2}},
-    {type:'wave', count:5},
-    {type:'gate', left:{op:'sub',val:2}, right:{op:'add',val:4}},
     {type:'wave', count:6},
-    {type:'gate', left:{op:'add',val:5}, right:{op:'sub',val:3}},
-    {type:'wave', count:7},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:4}},
+    {type:'gate', left:{op:'sub',val:3}, right:{op:'mul',val:2}},
     {type:'wave', count:8},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:2}},
+    {type:'wave', count:6},
+    {type:'gate', left:{op:'sub',val:1}, right:{op:'mul',val:2}},
+    {type:'wave', count:8},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:3}},
+    {type:'wave', count:10},
   ]},
-  // Level 2 — 7 waves
+  // Level 2
   { rows:[
     {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:3}},
-    {type:'wave', count:6},
-    {type:'gate', left:{op:'sub',val:4}, right:{op:'add',val:5}},
     {type:'wave', count:8},
-    {type:'gate', left:{op:'add',val:6}, right:{op:'sub',val:5}},
+    {type:'gate', left:{op:'sub',val:4}, right:{op:'mul',val:2}},
     {type:'wave', count:10},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:6}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:5}},
     {type:'wave', count:10},
     {type:'gate', left:{op:'sub',val:3}, right:{op:'mul',val:3}},
     {type:'wave', count:12},
-    {type:'gate', left:{op:'add',val:7}, right:{op:'sub',val:6}},
-    {type:'wave', count:12},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:6}},
     {type:'wave', count:14},
+    {type:'gate', left:{op:'sub',val:4}, right:{op:'mul',val:2}},
+    {type:'wave', count:14},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'wave', count:16},
   ]},
-  // Level 3 — 8 waves
+  // Level 3
   { rows:[
     {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:5}},
-    {type:'wave', count:10},
-    {type:'gate', left:{op:'sub',val:6}, right:{op:'add',val:8}},
     {type:'wave', count:12},
-    {type:'gate', left:{op:'add',val:8}, right:{op:'sub',val:7}},
+    {type:'gate', left:{op:'sub',val:6}, right:{op:'mul',val:2}},
     {type:'wave', count:14},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:7}},
     {type:'wave', count:14},
     {type:'gate', left:{op:'sub',val:5}, right:{op:'mul',val:2}},
     {type:'wave', count:16},
-    {type:'gate', left:{op:'add',val:10}, right:{op:'sub',val:9}},
-    {type:'wave', count:16},
-    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:10}},
-    {type:'wave', count:18},
-    {type:'gate', left:{op:'sub',val:8}, right:{op:'add',val:12}},
-    {type:'wave', count:20},
-  ]},
-  // Level 4 — 9 waves
-  { rows:[
     {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
-    {type:'wave', count:14},
-    {type:'gate', left:{op:'sub',val:10}, right:{op:'add',val:10}},
     {type:'wave', count:16},
-    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:12}},
+    {type:'gate', left:{op:'sub',val:6}, right:{op:'mul',val:3}},
     {type:'wave', count:18},
-    {type:'gate', left:{op:'add',val:12}, right:{op:'sub',val:10}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:10}},
     {type:'wave', count:18},
     {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
     {type:'wave', count:20},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:14}},
+  ]},
+  // Level 4
+  { rows:[
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
+    {type:'wave', count:16},
+    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:2}},
+    {type:'wave', count:18},
+    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:12}},
+    {type:'wave', count:18},
+    {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
+    {type:'wave', count:20},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:10}},
     {type:'wave', count:22},
-    {type:'gate', left:{op:'add',val:15}, right:{op:'sub',val:12}},
+    {type:'gate', left:{op:'sub',val:6}, right:{op:'mul',val:3}},
     {type:'wave', count:22},
-    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:3}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:12}},
     {type:'wave', count:24},
+    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:2}},
+    {type:'wave', count:26},
     {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
     {type:'wave', count:28},
   ]},
-  // Level 5 — 10 waves (Boss)
+  // Level 5 — Boss
   { rows:[
     {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:10}},
-    {type:'wave', count:18},
-    {type:'gate', left:{op:'sub',val:12}, right:{op:'add',val:15}},
     {type:'wave', count:20},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
+    {type:'gate', left:{op:'sub',val:12}, right:{op:'mul',val:2}},
     {type:'wave', count:22},
-    {type:'gate', left:{op:'add',val:18}, right:{op:'sub',val:14}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
     {type:'wave', count:24},
     {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:3}},
     {type:'wave', count:26},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:18}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:12}},
     {type:'wave', count:28},
-    {type:'gate', left:{op:'add',val:20}, right:{op:'sub',val:16}},
+    {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
     {type:'wave', count:30},
-    {type:'gate', left:{op:'sub',val:15}, right:{op:'mul',val:2}},
+    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:18}},
     {type:'wave', count:32},
+    {type:'gate', left:{op:'sub',val:15}, right:{op:'mul',val:2}},
+    {type:'wave', count:34},
     {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:20}},
     {type:'wave', count:36},
-    {type:'gate', left:{op:'sub',val:18}, right:{op:'add',val:25}},
+    {type:'gate', left:{op:'sub',val:18}, right:{op:'mul',val:2}},
     {type:'wave', count:40},
   ]},
 ];
@@ -190,7 +190,7 @@ function defaultState(levelIdx) {
   return {
     phase: 'gate',       // 'gate' | 'battle' | 'dead' | 'win'
     level: levelIdx,
-    units: 1,
+    units: 5,
     squadX: 0,           // screen pixel X of squad center (set in startLevel)
     scrollY: 0,          // total scroll distance
     rows: [],            // built from level data
@@ -359,9 +359,7 @@ function applyGate(side) {
   const color = side.op === 'sub' ? 'red' : 'blue';
   state.gateFlash = { color, timer: 18 };
 
-  if (side.op === 'add') {
-    state.units = Math.min(MAX_UNITS, state.units + side.val);
-  } else if (side.op === 'sub') {
+  if (side.op === 'sub') {
     state.units = Math.max(0, state.units - side.val);
   } else if (side.op === 'mul') {
     state.units = Math.min(MAX_UNITS, state.units * side.val);
@@ -588,7 +586,9 @@ function updateWorld() {
       const er = ENEMY_R * pos.scale;
       const dx = b.x - pos.x, dy = b.y - pos.y;
       if (dx*dx + dy*dy < (BULLET_R + er) ** 2) {
-        spawnParticles(pos.x, pos.y, '#ff6b35', 6);
+        spawnParticles(pos.x, pos.y, '#ff6b35', 8);
+        spawnParticles(pos.x, pos.y, '#ffcc44', 4);
+        spawnParticles(pos.x, pos.y, '#ffffff', 2);
         if (state.comboMode && Math.random() < 0.2) {
           spawnColorOrb(pos.x, pos.y);
         }
@@ -612,7 +612,8 @@ function updateWorld() {
     const er = ENEMY_R * pos.scale;
     const dx = pos.x - squadSX, dy = pos.y - squadSY;
     if (dx*dx + dy*dy < (clusterR + er) ** 2) {
-      spawnParticles(pos.x, pos.y, '#ff4757', 8);
+      spawnParticles(pos.x, pos.y, '#ff4757', 10);
+      spawnParticles(pos.x, pos.y, '#ff8866', 4);
       state.enemies.splice(ei, 1);
       state.units = Math.max(0, state.units - 1);
       updateHUD();
@@ -713,6 +714,7 @@ function draw() {
 
   drawBackground();
   drawRoad();
+  drawBridgeStructure();
 
   drawGates();
   drawEnemies();
@@ -726,71 +728,116 @@ function draw() {
   if (state.comboMode) drawColorComboHUD();
 }
 
-// ── Background ──────────────────────────────
+// ── Background (winter / Last War style) ────
 function drawBackground() {
-  // Sky gradient
-  const sky = ctx.createLinearGradient(0, 0, 0, H * ROAD_HORIZON);
-  sky.addColorStop(0, '#b8d4f0');
-  sky.addColorStop(1, '#ddeeff');
+  const horizY = H * ROAD_HORIZON;
+
+  // Cold winter sky
+  const sky = ctx.createLinearGradient(0, 0, 0, horizY + 10);
+  sky.addColorStop(0, '#7e94ab');
+  sky.addColorStop(0.5, '#9ab0c4');
+  sky.addColorStop(1, '#c4d2de');
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H * ROAD_HORIZON);
+  ctx.fillRect(0, 0, W, horizY + 10);
 
-  // Ground below horizon
-  const ground = ctx.createLinearGradient(0, H * ROAD_HORIZON, 0, H);
-  ground.addColorStop(0, '#c8d8b0');
-  ground.addColorStop(1, '#a0b880');
+  // Snowy ground
+  const ground = ctx.createLinearGradient(0, horizY, 0, H);
+  ground.addColorStop(0, '#b8c4a8');
+  ground.addColorStop(0.4, '#ccd8c0');
+  ground.addColorStop(1, '#dce6d0');
   ctx.fillStyle = ground;
-  ctx.fillRect(0, H * ROAD_HORIZON, W, H - H * ROAD_HORIZON);
+  ctx.fillRect(0, horizY, W, H);
 
-  // Distant mountains silhouette
-  ctx.fillStyle = 'rgba(100,130,160,0.35)';
+  // Back mountain layer (blue-gray)
+  const mpts = [
+    0,0.06, 0.06,0.22, 0.12,0.12, 0.18,0.30, 0.26,0.16,
+    0.34,0.28, 0.42,0.11, 0.50,0.26, 0.58,0.14, 0.65,0.24,
+    0.72,0.10, 0.78,0.28, 0.86,0.15, 0.92,0.24, 1.0,0.08
+  ];
+  ctx.fillStyle = 'rgba(130,150,180,0.45)';
   ctx.beginPath();
-  ctx.moveTo(0, H * ROAD_HORIZON);
-  const mpts = [0.05,0.18,0.12,0.28,0.22,0.14,0.38,0.25,0.5,0.10,0.62,0.22,0.72,0.13,0.85,0.24,0.92,0.16,1.0,0.20,1.0];
-  for (let i = 0; i < mpts.length - 1; i += 2) {
-    ctx.lineTo(mpts[i] * W, H * ROAD_HORIZON - mpts[i+1] * H * 0.18);
+  ctx.moveTo(0, horizY);
+  for (let i = 0; i < mpts.length; i += 2) {
+    ctx.lineTo(mpts[i] * W, horizY - mpts[i + 1] * H * 0.24);
   }
-  ctx.lineTo(W, H * ROAD_HORIZON);
+  ctx.lineTo(W, horizY);
   ctx.closePath();
   ctx.fill();
 
-  // Trees on sides
+  // Snow caps on taller peaks
+  ctx.fillStyle = 'rgba(235,242,252,0.55)';
+  for (let i = 0; i < mpts.length; i += 2) {
+    if (mpts[i + 1] > 0.18) {
+      const px = mpts[i] * W;
+      const peakY = horizY - mpts[i + 1] * H * 0.24;
+      const capH = mpts[i + 1] * H * 0.24 * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(px, peakY);
+      ctx.lineTo(px - capH * 0.7, peakY + capH);
+      ctx.lineTo(px + capH * 0.7, peakY + capH);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Horizon mist
+  const mist = ctx.createLinearGradient(0, horizY - 15, 0, horizY + 12);
+  mist.addColorStop(0, 'rgba(190,200,212,0)');
+  mist.addColorStop(0.5, 'rgba(190,200,212,0.35)');
+  mist.addColorStop(1, 'rgba(190,200,212,0)');
+  ctx.fillStyle = mist;
+  ctx.fillRect(0, horizY - 15, W, 27);
+
   drawTrees();
 }
 
 function drawTrees() {
-  // Place trees just outside the road edges at each depth
-  const depthData = [0.70, 0.55, 0.65, 0.50, 0.72];
+  const depthData = [0.72, 0.56, 0.66, 0.48, 0.74, 0.42, 0.62];
   const treeData = [];
   for (const depth of depthData) {
     const sy = H * ROAD_HORIZON + depth * (H - H * ROAD_HORIZON) * 0.85;
     const roadEdge = roadHalfAtY(sy);
-    const margin = 18 + Math.random() * 0;
-    // left side
-    treeData.push({ sx: W/2 - roadEdge - margin, sy, depth });
-    // right side
-    treeData.push({ sx: W/2 + roadEdge + margin, sy, depth });
+    const margin = 28;
+    treeData.push({ sx: W / 2 - roadEdge - margin, sy });
+    treeData.push({ sx: W / 2 + roadEdge + margin, sy });
   }
   for (const t of treeData) {
     const sy = t.sy;
-    const s  = scaleAtY(sy) * 28;
+    const s = scaleAtY(sy) * 28;
     const sx = t.sx;
     // Trunk
-    ctx.fillStyle = '#6b4423';
-    ctx.fillRect(sx - s*0.12, sy - s*0.3, s*0.24, s*0.3);
-    // Foliage
-    ctx.fillStyle = '#2d6a2d';
+    ctx.fillStyle = '#4a2e12';
+    ctx.fillRect(sx - s * 0.08, sy - s * 0.2, s * 0.16, s * 0.2);
+    // Lower foliage
+    ctx.fillStyle = '#1a5528';
     ctx.beginPath();
-    ctx.moveTo(sx, sy - s * 1.4);
-    ctx.lineTo(sx - s * 0.55, sy - s * 0.3);
-    ctx.lineTo(sx + s * 0.55, sy - s * 0.3);
+    ctx.moveTo(sx, sy - s * 1.1);
+    ctx.lineTo(sx - s * 0.48, sy - s * 0.15);
+    ctx.lineTo(sx + s * 0.48, sy - s * 0.15);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#3a8a3a';
+    // Upper foliage
+    ctx.fillStyle = '#227a32';
     ctx.beginPath();
-    ctx.moveTo(sx, sy - s * 1.8);
-    ctx.lineTo(sx - s * 0.42, sy - s * 0.9);
-    ctx.lineTo(sx + s * 0.42, sy - s * 0.9);
+    ctx.moveTo(sx, sy - s * 1.6);
+    ctx.lineTo(sx - s * 0.35, sy - s * 0.7);
+    ctx.lineTo(sx + s * 0.35, sy - s * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    // Snow cap
+    ctx.fillStyle = 'rgba(235,242,255,0.72)';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - s * 1.6);
+    ctx.lineTo(sx - s * 0.20, sy - s * 1.15);
+    ctx.lineTo(sx + s * 0.20, sy - s * 1.15);
+    ctx.closePath();
+    ctx.fill();
+    // Snow patches on lower foliage
+    ctx.fillStyle = 'rgba(225,235,248,0.4)';
+    ctx.beginPath();
+    ctx.moveTo(sx - s * 0.12, sy - s * 0.8);
+    ctx.lineTo(sx - s * 0.36, sy - s * 0.42);
+    ctx.lineTo(sx + s * 0.06, sy - s * 0.55);
     ctx.closePath();
     ctx.fill();
   }
@@ -799,15 +846,15 @@ function drawTrees() {
 // ── Road ────────────────────────────────────
 function drawRoad() {
   const horizY = H * ROAD_HORIZON;
-  const roadL_top  = W/2 - ROAD_WIDTH_TOP/2  * W;
-  const roadR_top  = W/2 + ROAD_WIDTH_TOP/2  * W;
-  const roadL_bot  = W/2 - ROAD_WIDTH_BOTTOM/2 * W;
-  const roadR_bot  = W/2 + ROAD_WIDTH_BOTTOM/2 * W;
+  const roadL_top = W / 2 - ROAD_WIDTH_TOP / 2 * W;
+  const roadR_top = W / 2 + ROAD_WIDTH_TOP / 2 * W;
+  const roadL_bot = W / 2 - ROAD_WIDTH_BOTTOM / 2 * W;
+  const roadR_bot = W / 2 + ROAD_WIDTH_BOTTOM / 2 * W;
 
   // Road surface
   const roadGrad = ctx.createLinearGradient(0, horizY, 0, H);
-  roadGrad.addColorStop(0, '#b0b8c0');
-  roadGrad.addColorStop(1, '#d0d8e0');
+  roadGrad.addColorStop(0, '#a8b0b8');
+  roadGrad.addColorStop(1, '#c8d0d8');
   ctx.fillStyle = roadGrad;
   ctx.beginPath();
   ctx.moveTo(roadL_top, horizY);
@@ -817,9 +864,9 @@ function drawRoad() {
   ctx.closePath();
   ctx.fill();
 
-  // Road edges (red railings like bridge)
+  // Red railing barriers (thick edges)
   ctx.strokeStyle = '#cc2222';
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 7;
   ctx.beginPath(); ctx.moveTo(roadL_top, horizY); ctx.lineTo(roadL_bot, H); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(roadR_top, horizY); ctx.lineTo(roadR_bot, H); ctx.stroke();
 
@@ -829,8 +876,8 @@ function drawRoad() {
   ctx.setLineDash([20, 18]);
   ctx.lineDashOffset = -(state.scrollY % 38);
   ctx.beginPath();
-  ctx.moveTo(W/2, horizY);
-  ctx.lineTo(W/2, H);
+  ctx.moveTo(W / 2, horizY);
+  ctx.lineTo(W / 2, H);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -840,6 +887,133 @@ function drawRoad() {
   shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = shadowGrad;
   ctx.fillRect(0, horizY, W, 30);
+}
+
+// ── Bridge Structure (towers, cables, railing posts) ──
+function drawBridgeStructure() {
+  const horizY = H * ROAD_HORIZON;
+
+  // ── Railing posts along road edges ──
+  for (let i = 0; i < 14; i++) {
+    const t = 0.04 + i * 0.07;
+    const postY = horizY + t * (H - horizY);
+    const s = scaleAtY(postY);
+    const rh = roadHalfAtY(postY);
+    const pw = Math.max(3, 5 * s);
+    const ph = Math.max(8, 22 * s);
+    ctx.fillStyle = '#cc2222';
+    ctx.fillRect(W / 2 - rh - pw / 2, postY - ph, pw, ph);
+    ctx.fillRect(W / 2 + rh - pw / 2, postY - ph, pw, ph);
+  }
+
+  // Horizontal railing bar (follows perspective curve above road edge)
+  ctx.strokeStyle = '#cc2222';
+  ctx.lineWidth = 2.5;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const t = i / 24;
+      const y = horizY + t * (H - horizY);
+      const rh = roadHalfAtY(y);
+      const railH = 18 * scaleAtY(y);
+      const x = W / 2 + side * rh;
+      if (i === 0) ctx.moveTo(x, y - railH);
+      else ctx.lineTo(x, y - railH);
+    }
+    ctx.stroke();
+  }
+
+  // ── Near tower pair (t ≈ 0.40) ──
+  const nearT = 0.40;
+  const nearY = horizY + nearT * (H - horizY);
+  const ns = scaleAtY(nearY);
+  const nrh = roadHalfAtY(nearY);
+  const ncw = Math.max(10, 22 * ns);
+  const nth = Math.max(80, 210 * ns);
+  const nty = nearY - nth;
+  const nlx = W / 2 - nrh;
+  const nrx = W / 2 + nrh;
+
+  // Tower shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(nlx - ncw / 2 + 3, nty + 3, ncw, nth);
+  ctx.fillRect(nrx - ncw / 2 + 3, nty + 3, ncw, nth);
+
+  // Tower columns with gradient
+  for (const tx of [nlx, nrx]) {
+    const tg = ctx.createLinearGradient(tx - ncw / 2, 0, tx + ncw / 2, 0);
+    tg.addColorStop(0, '#a01818');
+    tg.addColorStop(0.3, '#dd3333');
+    tg.addColorStop(0.7, '#cc2222');
+    tg.addColorStop(1, '#901212');
+    ctx.fillStyle = tg;
+    ctx.fillRect(tx - ncw / 2, nty, ncw, nth);
+  }
+
+  // Cross beam
+  const nbh = Math.max(5, 10 * ns);
+  ctx.fillStyle = '#b81818';
+  ctx.fillRect(nlx - ncw / 2, nty, nrx - nlx + ncw, nbh);
+
+  // ── Far tower pair (t ≈ 0.12) ──
+  const farT = 0.12;
+  const farY = horizY + farT * (H - horizY);
+  const fs = scaleAtY(farY);
+  const frh = roadHalfAtY(farY);
+  const fcw = Math.max(5, 14 * fs);
+  const fth = Math.max(45, 150 * fs);
+  const fty = farY - fth;
+  const flx = W / 2 - frh;
+  const frx = W / 2 + frh;
+
+  ctx.fillStyle = '#bb2020';
+  ctx.fillRect(flx - fcw / 2, fty, fcw, fth);
+  ctx.fillRect(frx - fcw / 2, fty, fcw, fth);
+  const fbh = Math.max(3, 6 * fs);
+  ctx.fillStyle = '#a81818';
+  ctx.fillRect(flx - fcw / 2, fty, frx - flx + fcw, fbh);
+
+  // ── Suspension cables ──
+  // Main cable between tower tops (catenary)
+  ctx.strokeStyle = '#cc3333';
+  ctx.lineWidth = Math.max(2, 4 * ns);
+  const midY = Math.max(nty, fty) + 45 * ns;
+  for (const [nx, fx] of [[nlx, flx], [nrx, frx]]) {
+    ctx.beginPath();
+    ctx.moveTo(nx, nty + nbh / 2);
+    ctx.quadraticCurveTo((nx + fx) / 2, midY, fx, fty + fbh / 2);
+    ctx.stroke();
+  }
+
+  // Fan cables from near tower toward viewer
+  ctx.lineWidth = Math.max(1, 1.5 * ns);
+  ctx.globalAlpha = 0.6;
+  for (let i = 1; i <= 6; i++) {
+    const ct = nearT + (1 - nearT) * (i / 6);
+    const cy = horizY + ct * (H - horizY);
+    const crh = roadHalfAtY(cy);
+    ctx.beginPath(); ctx.moveTo(nlx, nty + nbh); ctx.lineTo(W / 2 - crh, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nrx, nty + nbh); ctx.lineTo(W / 2 + crh, cy); ctx.stroke();
+  }
+
+  // Fan cables between towers
+  for (let i = 1; i <= 3; i++) {
+    const ct = farT + (nearT - farT) * (i / 4);
+    const cy = horizY + ct * (H - horizY);
+    const crh = roadHalfAtY(cy);
+    ctx.beginPath(); ctx.moveTo(nlx, nty + nbh); ctx.lineTo(W / 2 - crh, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nrx, nty + nbh); ctx.lineTo(W / 2 + crh, cy); ctx.stroke();
+  }
+
+  // Fan cables from far tower toward horizon
+  for (let i = 1; i <= 2; i++) {
+    const ct = farT * (1 - i / 3);
+    const cy = horizY + ct * (H - horizY);
+    const crh = roadHalfAtY(cy);
+    ctx.beginPath(); ctx.moveTo(flx, fty + fbh); ctx.lineTo(W / 2 - crh, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(frx, fty + fbh); ctx.lineTo(W / 2 + crh, cy); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 }
 
 // ── Gates ───────────────────────────────────
@@ -867,67 +1041,130 @@ function drawGates() {
     // Right gate
     drawGatePanel(row.right, centerX, centerX + roadHalf, gateTop, gateBot, scale);
 
-    // Vertical divider post
-    ctx.fillStyle = '#aaa';
-    ctx.fillRect(centerX - 3 * scale, gateTop, 6 * scale, gateH);
+    // Center divider pillar
+    const pillarW = Math.max(6, 10 * scale);
+    const pillarExt = Math.max(8, 16 * scale);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(centerX - pillarW / 2, gateTop - pillarExt, pillarW, gateH + pillarExt * 2);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(centerX - pillarW / 2 + 1, gateTop - pillarExt, pillarW * 0.35, gateH + pillarExt * 2);
+    // Pillar cap
+    ctx.fillStyle = '#44aacc';
+    ctx.fillRect(centerX - pillarW * 0.8, gateTop - pillarExt, pillarW * 1.6, Math.max(4, 6 * scale));
   }
 }
 
 function drawGatePanel(side, x1, x2, y1, y2, scale) {
   const isRed = side.op === 'sub';
-  const mainColor = isRed ? '#e8293a' : '#2979e8';
-  const lightColor= isRed ? 'rgba(255,80,100,0.85)' : 'rgba(60,140,255,0.85)';
-  const darkColor = isRed ? '#9b1a25' : '#1a4e9b';
-
-  // Semi-transparent fill
-  ctx.fillStyle = isRed ? 'rgba(232,41,58,0.22)' : 'rgba(41,121,232,0.22)';
-  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-
-  // Top/bottom bars
-  const barH = Math.max(6, 10 * scale);
-  ctx.fillStyle = mainColor;
-  ctx.fillRect(x1, y1, x2 - x1, barH);
-  ctx.fillRect(x1, y2 - barH, x2 - x1, barH);
-
-  // Side posts
-  const postW = Math.max(5, 8 * scale);
-  ctx.fillStyle = darkColor;
-  ctx.fillRect(x1, y1, postW, y2 - y1);
-  ctx.fillRect(x2 - postW, y1, postW, y2 - y1);
-
-  // Label
+  const w = x2 - x1;
+  const h = y2 - y1;
   const cx = (x1 + x2) / 2;
   const cy = (y1 + y2) / 2;
+
+  // Panel background — strong gradient fill
+  const panelGrad = ctx.createLinearGradient(x1, y1, x1, y2);
+  if (isRed) {
+    panelGrad.addColorStop(0, 'rgba(220,30,50,0.82)');
+    panelGrad.addColorStop(0.5, 'rgba(200,25,40,0.75)');
+    panelGrad.addColorStop(1, 'rgba(180,20,35,0.82)');
+  } else {
+    panelGrad.addColorStop(0, 'rgba(30,100,220,0.82)');
+    panelGrad.addColorStop(0.5, 'rgba(25,90,200,0.75)');
+    panelGrad.addColorStop(1, 'rgba(20,80,180,0.82)');
+  }
+  ctx.fillStyle = panelGrad;
+  ctx.fillRect(x1, y1, w, h);
+
+  // Inner glow (lighter center stripe)
+  const glowGrad = ctx.createLinearGradient(x1, y1, x2, y1);
+  if (isRed) {
+    glowGrad.addColorStop(0, 'rgba(255,80,100,0)');
+    glowGrad.addColorStop(0.5, 'rgba(255,100,120,0.25)');
+    glowGrad.addColorStop(1, 'rgba(255,80,100,0)');
+  } else {
+    glowGrad.addColorStop(0, 'rgba(80,150,255,0)');
+    glowGrad.addColorStop(0.5, 'rgba(100,170,255,0.25)');
+    glowGrad.addColorStop(1, 'rgba(80,150,255,0)');
+  }
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(x1, y1, w, h);
+
+  // Top bar
+  const barH = Math.max(6, 12 * scale);
+  ctx.fillStyle = isRed ? '#cc1a2a' : '#1a5acc';
+  ctx.fillRect(x1, y1, w, barH);
+
+  // Bottom bar
+  ctx.fillRect(x1, y2 - barH, w, barH);
+
+  // Side pillars
+  const postW = Math.max(5, 10 * scale);
+  const darkColor = isRed ? '#8a1520' : '#12408a';
+  ctx.fillStyle = darkColor;
+  ctx.fillRect(x1, y1, postW, h);
+  ctx.fillRect(x2 - postW, y1, postW, h);
+
+  // Pillar highlight
+  ctx.fillStyle = isRed ? 'rgba(255,120,140,0.3)' : 'rgba(120,180,255,0.3)';
+  ctx.fillRect(x1 + 1, y1, postW * 0.4, h);
+  ctx.fillRect(x2 - postW + 1, y1, postW * 0.4, h);
+
+  // Label
   let label = '';
-  if (side.op === 'add') label = `+${side.val}`;
-  else if (side.op === 'sub') label = `-${side.val}`;
+  if (side.op === 'sub') label = `-${side.val}`;
   else if (side.op === 'mul') label = `×${side.val}`;
 
-  const fontSize = Math.max(14, 28 * scale);
+  const fontSize = Math.max(18, 36 * scale);
   ctx.font = `900 ${fontSize}px 'Segoe UI', sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillText(label, cx + 2, cy + 2);
+  // Text shadow (dark)
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillText(label, cx + 2 * scale, cy + 2 * scale);
 
-  // Main text
+  // Text glow
+  ctx.shadowColor = isRed ? '#ff4466' : '#4488ff';
+  ctx.shadowBlur = 14 * scale;
   ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = isRed ? '#ff8888' : '#88aaff';
-  ctx.shadowBlur = 8 * scale;
   ctx.fillText(label, cx, cy);
   ctx.shadowBlur = 0;
 }
 
 // ── Enemies ─────────────────────────────────
 function drawEnemies() {
-  // Compute screen positions and sort by y (far → near)
+  if (state.enemies.length === 0) return;
+
   const withPos = state.enemies.map(e => ({ e, pos: enemyScreenPos(e) }));
   withPos.sort((a, b) => a.pos.y - b.pos.y);
   for (const { e, pos } of withPos) {
     drawEnemyFigure(pos.x, pos.y, pos.scale, e.flashTimer > 0);
   }
+
+  // Enemy count badge above the group center
+  let sumX = 0, minY = Infinity;
+  for (const { pos } of withPos) {
+    sumX += pos.x;
+    if (pos.y < minY) minY = pos.y;
+  }
+  const avgX = sumX / withPos.length;
+  const badgeY = minY - 22;
+  const count = state.enemies.length;
+
+  // Badge text setup (must be set before measureText)
+  ctx.font = '800 16px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Badge background
+  const badgeW = Math.max(32, 14 + ctx.measureText(String(count)).width);
+  ctx.fillStyle = 'rgba(180,30,30,0.85)';
+  roundRect(avgX - badgeW / 2, badgeY - 14, badgeW, 26, 8);
+  ctx.fill();
+
+  // Badge number
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(String(count), avgX, badgeY);
 }
 
 function drawEnemyFigure(x, y, s, flash) {
@@ -936,16 +1173,24 @@ function drawEnemyFigure(x, y, s, flash) {
   const hr = ENEMY_HEAD_R * s;
 
   ctx.shadowColor = flash ? '#fff' : '#e84393';
-  ctx.shadowBlur  = flash ? 16 : 8;
+  ctx.shadowBlur = flash ? 18 : 6;
 
   // Body
-  ctx.fillStyle = flash ? '#fff' : '#c0392b';
+  ctx.fillStyle = flash ? '#fff' : '#b8312a';
   ctx.beginPath();
   ctx.ellipse(x, y + br * 0.3, br * 0.65, br * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Body highlight
+  if (!flash) {
+    ctx.fillStyle = 'rgba(255,100,80,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x - br * 0.15, y + br * 0.1, br * 0.3, br * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Head
-  ctx.fillStyle = flash ? '#fff' : '#e84393';
+  ctx.fillStyle = flash ? '#fff' : '#e0c8a0';
   ctx.beginPath();
   ctx.arc(x, y - br * 0.6, hr, 0, Math.PI * 2);
   ctx.fill();
@@ -953,8 +1198,16 @@ function drawEnemyFigure(x, y, s, flash) {
   // Helmet
   ctx.fillStyle = flash ? '#fff' : '#8b0000';
   ctx.beginPath();
-  ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.9, hr * 0.55, 0, Math.PI, Math.PI * 2);
+  ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.95, hr * 0.58, 0, Math.PI, Math.PI * 2);
   ctx.fill();
+
+  // Helmet shine
+  if (!flash) {
+    ctx.fillStyle = 'rgba(255,80,80,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x - hr * 0.2, y - br * 0.6 - hr * 0.45, hr * 0.3, hr * 0.2, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.shadowBlur = 0;
 }
@@ -1003,7 +1256,7 @@ function drawSoldierFigure(x, y, scale) {
   const hr = HEAD_R * scale;
 
   ctx.shadowColor = '#4fc3f7';
-  ctx.shadowBlur  = 10;
+  ctx.shadowBlur = 8;
 
   // Body
   ctx.fillStyle = '#1565c0';
@@ -1011,8 +1264,14 @@ function drawSoldierFigure(x, y, scale) {
   ctx.ellipse(x, y + br * 0.3, br * 0.65, br * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Body highlight
+  ctx.fillStyle = 'rgba(100,180,255,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(x - br * 0.15, y + br * 0.1, br * 0.3, br * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   // Head
-  ctx.fillStyle = '#e0e0e0';
+  ctx.fillStyle = '#e8dcc8';
   ctx.beginPath();
   ctx.arc(x, y - br * 0.6, hr, 0, Math.PI * 2);
   ctx.fill();
@@ -1023,13 +1282,22 @@ function drawSoldierFigure(x, y, scale) {
   ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.95, hr * 0.58, 0, Math.PI, Math.PI * 2);
   ctx.fill();
 
-  // Gun flash
-  ctx.fillStyle = '#ffe066';
-  ctx.shadowColor = '#ffe066';
-  ctx.shadowBlur  = 6;
+  // Helmet shine
+  ctx.fillStyle = 'rgba(100,200,255,0.3)';
   ctx.beginPath();
-  ctx.arc(x, y - br * 0.1, br * 0.18, 0, Math.PI * 2);
+  ctx.ellipse(x - hr * 0.2, y - br * 0.6 - hr * 0.45, hr * 0.3, hr * 0.18, -0.3, 0, Math.PI * 2);
   ctx.fill();
+
+  // Muzzle flash (pulsing)
+  if (state.shootTimer < 6 && state.enemies.length > 0) {
+    const flashAlpha = 1 - state.shootTimer / 6;
+    ctx.fillStyle = `rgba(255,230,100,${flashAlpha * 0.9})`;
+    ctx.shadowColor = '#ffe066';
+    ctx.shadowBlur = 10 * flashAlpha;
+    ctx.beginPath();
+    ctx.arc(x, y - br * 1.2, br * 0.3 * (1 + flashAlpha * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.shadowBlur = 0;
 }
