@@ -189,7 +189,7 @@ function scaleAtY(sy) {
 
 // ── Bottom stack helpers ─────────────────────
 function getStackOrbsPerRow() {
-  const roadW = ROAD_WIDTH_BOTTOM * W;
+  const roadW = ROAD_WIDTH_BOTTOM * W / 5;
   return Math.max(1, Math.floor(roadW / (STACK_ORB_R * 2 + STACK_ORB_GAP)));
 }
 
@@ -395,7 +395,9 @@ function applyGate(side) {
   buildSoldiers();
 
   if (state.comboMode) {
-    awardColorToken(color);
+    const sy = getEffectiveSquadY();
+    spawnColorOrbAt(state.squadX - 15, sy - 20, color);
+    spawnColorOrbAt(state.squadX + 15, sy - 20, color);
   }
 
   if (state.units <= 0) {
@@ -444,25 +446,32 @@ function applyColorBuff(color) {
   if (color === 'red') {
     state.units = Math.min(MAX_UNITS, state.units + 5);
     state.activeBuffs.push({ color: 'red', label: '+5' });
-  } else {
+  } else if (color === 'blue') {
     state.units = Math.min(MAX_UNITS, state.units * 2);
     state.activeBuffs.push({ color: 'blue', label: '×2' });
+  } else if (color === 'yellow') {
+    state.units = Math.min(MAX_UNITS, state.units + 3);
+    state.activeBuffs.push({ color: 'yellow', label: '+3' });
   }
   updateHUD();
   buildSoldiers();
-  // Flash the screen briefly with combo color
   state.gateFlash = { color, timer: 24 };
 }
 
 function spawnTokenParticles(color) {
   const cx = state.squadX;
   const cy = getEffectiveSquadY() - 30;
-  const c  = color === 'red' ? '#ff5555' : '#5599ff';
+  const c  = color === 'red' ? '#ff5555' : color === 'yellow' ? '#ffcc44' : '#5599ff';
   spawnParticles(cx, cy, c, 8);
 }
 
 function spawnColorOrb(x, y) {
-  const color = Math.random() < 0.5 ? 'red' : 'blue';
+  const r = Math.random();
+  const color = r < 0.33 ? 'red' : r < 0.66 ? 'blue' : 'yellow';
+  spawnColorOrbAt(x, y, color);
+}
+
+function spawnColorOrbAt(x, y, color) {
   const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
   const speed = 2 + Math.random() * 2;
   state.colorOrbs.push({
@@ -1360,8 +1369,9 @@ function drawParticles() {
 function drawGateFlash() {
   if (!state.gateFlash) return;
   const t = state.gateFlash.timer / 18;
-  const color = state.gateFlash.color === 'red'
-    ? `rgba(255,60,60,${t * 0.28})`
+  const fc = state.gateFlash.color;
+  const color = fc === 'red' ? `rgba(255,60,60,${t * 0.28})`
+    : fc === 'yellow' ? `rgba(255,200,40,${t * 0.28})`
     : `rgba(60,120,255,${t * 0.28})`;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, W, H);
@@ -1372,10 +1382,9 @@ function drawColorOrbs() {
   if (!state.comboMode) return;
   for (const orb of state.colorOrbs) {
     const alpha = Math.min(1, orb.life / 60);
-    const isRed = orb.color === 'red';
-    const innerColor = isRed ? '#ff4444' : '#4488ff';
-    const glowColor  = isRed ? '#ff0000' : '#0066ff';
-    const rimColor   = isRed ? '#ffaaaa' : '#aaccff';
+    const innerColor = orb.color === 'red' ? '#ff4444' : orb.color === 'yellow' ? '#ffcc00' : '#4488ff';
+    const glowColor  = orb.color === 'red' ? '#ff0000' : orb.color === 'yellow' ? '#ff9900' : '#0066ff';
+    const rimColor   = orb.color === 'red' ? '#ffaaaa' : orb.color === 'yellow' ? '#ffee88' : '#aaccff';
 
     ctx.globalAlpha = alpha;
 
@@ -1415,8 +1424,9 @@ function drawBottomStackZone() {
   const cappedH = Math.min(stackH, H * STACK_MAX_HEIGHT_FRAC);
   const zoneTop = H - cappedH;
 
-  const roadL = W / 2 - ROAD_WIDTH_BOTTOM / 2 * W;
-  const roadR = W / 2 + ROAD_WIDTH_BOTTOM / 2 * W;
+  const stackW = ROAD_WIDTH_BOTTOM * W / 5;
+  const stackL = W / 2 - stackW / 2;
+  const stackR = W / 2 + stackW / 2;
 
   // Dark background
   const zoneGrad = ctx.createLinearGradient(0, zoneTop - 12, 0, H);
@@ -1424,14 +1434,14 @@ function drawBottomStackZone() {
   zoneGrad.addColorStop(0.08, 'rgba(10,10,30,0.6)');
   zoneGrad.addColorStop(1, 'rgba(10,10,30,0.82)');
   ctx.fillStyle = zoneGrad;
-  ctx.fillRect(roadL, zoneTop - 12, roadR - roadL, cappedH + 12);
+  ctx.fillRect(stackL - 6, zoneTop - 12, stackW + 12, cappedH + 12);
 
   // Top divider
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(roadL + 8, zoneTop);
-  ctx.lineTo(roadR - 8, zoneTop);
+  ctx.moveTo(stackL, zoneTop);
+  ctx.lineTo(stackR, zoneTop);
   ctx.stroke();
 
   // Draw stacked orbs
@@ -1449,24 +1459,26 @@ function drawBottomStackZone() {
     if (orbY < zoneTop - STACK_ORB_R) continue;
 
     const color = state.stackOrbs[i];
-    const isRed = color === 'red';
+    const shadowC = color === 'red' ? '#ff0000' : color === 'yellow' ? '#ff9900' : '#0066ff';
+    const rimC    = color === 'red' ? '#ffaaaa' : color === 'yellow' ? '#ffee88' : '#aaccff';
+    const coreC   = color === 'red' ? '#ff4444' : color === 'yellow' ? '#ffcc00' : '#4488ff';
 
     // Near-match glow (2 consecutive same color)
     let nearMatch = false;
     if (i > 0 && state.stackOrbs[i - 1] === color) nearMatch = true;
     if (i < state.stackOrbs.length - 1 && state.stackOrbs[i + 1] === color) nearMatch = true;
 
-    ctx.shadowColor = isRed ? '#ff0000' : '#0066ff';
+    ctx.shadowColor = shadowC;
     ctx.shadowBlur = nearMatch ? 18 : 5;
 
     // Outer rim
-    ctx.fillStyle = isRed ? '#ffaaaa' : '#aaccff';
+    ctx.fillStyle = rimC;
     ctx.beginPath();
     ctx.arc(orbX, orbY, STACK_ORB_R + 2, 0, Math.PI * 2);
     ctx.fill();
 
     // Core
-    ctx.fillStyle = isRed ? '#ff4444' : '#4488ff';
+    ctx.fillStyle = coreC;
     ctx.beginPath();
     ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
     ctx.fill();
@@ -1532,10 +1544,9 @@ function drawColorComboHUD() {
   const startY = py + PAD + 16 + BUFF_R;
   for (let i = 0; i < buffCount; i++) {
     const buff  = state.activeBuffs[i];
-    const isRed = buff.color === 'red';
-    const core  = isRed ? '#ff4444' : '#4488ff';
-    const glow  = isRed ? '#ff0000' : '#0055ff';
-    const rim   = isRed ? '#ffaaaa' : '#aaccff';
+    const core  = buff.color === 'red' ? '#ff4444' : buff.color === 'yellow' ? '#ffcc00' : '#4488ff';
+    const glow  = buff.color === 'red' ? '#ff0000' : buff.color === 'yellow' ? '#ff9900' : '#0055ff';
+    const rim   = buff.color === 'red' ? '#ffaaaa' : buff.color === 'yellow' ? '#ffee88' : '#aaccff';
 
     const col = i % 5;
     const row = Math.floor(i / 5);
