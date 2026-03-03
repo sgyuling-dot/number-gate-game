@@ -158,8 +158,8 @@ const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
 const MAX_UNITS         = 20;
 
 // ── Bottom stack constants ──────────────────
-const STACK_ORB_R       = 3;     // radius of orbs in the bottom stack
-const STACK_ORB_GAP     = 1;     // gap between stacked orbs
+const STACK_ORB_R       = 16;    // radius of orbs in the bottom stack
+const STACK_ORB_GAP     = 4;     // gap between stacked orbs
 const STACK_MAX_HEIGHT_FRAC = 0.55; // max fraction of H the stack can push up
 
 // ══════════════════════════════════════════════
