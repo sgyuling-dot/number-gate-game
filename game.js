@@ -28,6 +28,7 @@ comboModeCheckbox.addEventListener('change', () => {
   state.comboMode = comboModeCheckbox.checked;
   if (!state.comboMode) {
     state.colorOrbs = [];
+    state.stackOrbs = [];
   }
 });
 
@@ -156,6 +157,11 @@ const GATE_H_WORLD      = 110;   // gate height in world units
 const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
 const MAX_UNITS         = 20;
 
+// ── Bottom stack constants ──────────────────
+const STACK_ORB_R       = 16;    // radius of orbs in the bottom stack
+const STACK_ORB_GAP     = 4;     // gap between stacked orbs
+const STACK_MAX_HEIGHT_FRAC = 0.12; // max fraction of H the stack can push up
+
 // ══════════════════════════════════════════════
 //  PERSPECTIVE HELPERS
 //  World Y = 0 at horizon, increases downward.
@@ -181,6 +187,23 @@ function scaleAtY(sy) {
   return 0.25 + 0.75 * t;
 }
 
+// ── Bottom stack helpers ─────────────────────
+function getStackOrbsPerRow() {
+  const roadW = ROAD_WIDTH_BOTTOM * W;
+  return Math.max(1, Math.floor(roadW / (STACK_ORB_R * 2 + STACK_ORB_GAP)));
+}
+
+function getStackHeightPx() {
+  const orbsPerRow = getStackOrbsPerRow();
+  const rows = Math.ceil(state.stackOrbs.length / orbsPerRow);
+  return rows * (STACK_ORB_R * 2 + STACK_ORB_GAP);
+}
+
+function getEffectiveSquadY() {
+  const penalty = Math.min(getStackHeightPx(), H * STACK_MAX_HEIGHT_FRAC);
+  return H * SQUAD_Y_FRAC - penalty;
+}
+
 // ══════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════
@@ -203,10 +226,11 @@ function defaultState(levelIdx) {
     gateFlash: null,     // { color, timer }
     waveLabel: null,     // { text, timer }
     // ── Combo mode ──────────────────────────
-    comboMode: false,
+    comboMode: true,
     colorTokens: { red: 0, blue: 0 },  // pending tokens 0-2
     activeBuffs: [],                    // [{ color, label }]
     colorOrbs: [],                      // [{ x, y, vx, vy, color, life }]
+    stackOrbs: [],                      // ['red'|'blue', ...] bottom stack
   };
 }
 
@@ -217,11 +241,13 @@ const ROW_SPACING = 420;  // world-scroll units between rows
 
 function startLevel(levelIdx) {
   const prevBuffs = state.activeBuffs || [];
+  const prevStack = state.stackOrbs || [];
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
-  state.comboMode = comboModeCheckbox.checked;
-  // Carry stacked buffs across levels for progression feel
-  state.activeBuffs = state.comboMode ? prevBuffs : [];
+  state.comboMode = true;
+  // Carry buffs and stack across levels for progression feel
+  state.activeBuffs = prevBuffs;
+  state.stackOrbs = prevStack;
 
   const def = LEVELS[levelIdx];
   state.rows = def.rows.map((row, i) => ({
@@ -241,7 +267,7 @@ function startLevel(levelIdx) {
 function buildSoldiers() {
   // Arrange N soldiers in a tight circular cluster
   const n = state.units;
-  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSY = getEffectiveSquadY();
   const scale   = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
 
@@ -384,11 +410,33 @@ const COLOR_ORB_R    = 9;
 const COLOR_ORB_LIFE = 300;  // frames before orb fades
 
 function awardColorToken(color) {
-  state.colorTokens[color]++;
+  collectToStack(color);
+}
+
+function collectToStack(color) {
+  state.stackOrbs.push(color);
   spawnTokenParticles(color);
-  if (state.colorTokens[color] >= 3) {
-    state.colorTokens[color] = 0;
-    applyColorBuff(color);
+  resolveStackMatches();
+}
+
+function resolveStackMatches() {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i <= state.stackOrbs.length - 3; i++) {
+      if (state.stackOrbs[i] === state.stackOrbs[i + 1] &&
+          state.stackOrbs[i + 1] === state.stackOrbs[i + 2]) {
+        const color = state.stackOrbs[i];
+        let runEnd = i + 3;
+        while (runEnd < state.stackOrbs.length && state.stackOrbs[runEnd] === color) runEnd++;
+        const runLen = runEnd - i;
+        const buffs = Math.floor(runLen / 3);
+        state.stackOrbs.splice(i, buffs * 3);
+        for (let b = 0; b < buffs; b++) applyColorBuff(color);
+        changed = true;
+        break;
+      }
+    }
   }
 }
 
@@ -408,7 +456,7 @@ function applyColorBuff(color) {
 
 function spawnTokenParticles(color) {
   const cx = state.squadX;
-  const cy = H * SQUAD_Y_FRAC - 30;
+  const cy = getEffectiveSquadY() - 30;
   const c  = color === 'red' ? '#ff5555' : '#5599ff';
   spawnParticles(cx, cy, c, 8);
 }
@@ -466,7 +514,7 @@ function enemyScreenPos(e) {
   const t = perspT(distAhead);
 
   const horizonY = ROAD_HORIZON * H;
-  const squadY   = SQUAD_Y_FRAC * H;
+  const squadY   = getEffectiveSquadY();
   const baseY    = horizonY + t * (squadY - horizonY);
 
   const scale    = scaleAtY(baseY);
@@ -594,7 +642,7 @@ function updateWorld() {
   }
 
   // ── Enemy vs Squad collision ───────────────
-  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSY = getEffectiveSquadY();
   const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
   const clusterR = getClusterRadius(state.units) * scale * (UNIT_R * 2 + 3);
@@ -623,7 +671,7 @@ function updateWorld() {
 
   // ── Color orbs (combo mode) ───────────────
   if (state.comboMode) {
-    const squadSY2  = H * SQUAD_Y_FRAC;
+    const squadSY2  = getEffectiveSquadY();
     const squadSX2  = state.squadX;
     const scale2    = scaleAtY(squadSY2);
     const collectR  = (getClusterRadius(state.units) + 1) * scale2 * (UNIT_R * 2 + 3) + COLOR_ORB_R + 10;
@@ -673,7 +721,7 @@ function getClusterRadius(n) {
 // ── Fire ────────────────────────────────────
 function fireFromSquad() {
   if (state.enemies.length === 0) return;
-  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSY = getEffectiveSquadY();
   const squadSX = state.squadX;
   const scale = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
@@ -716,6 +764,7 @@ function draw() {
 
   drawParticles();
   drawSquad();
+  drawBottomStackZone();
   drawGateFlash();
 
   if (state.comboMode) drawColorComboHUD();
@@ -1019,7 +1068,7 @@ function drawGates() {
 
     // Use perspective mapping — same as enemyScreenPos
     const t  = perspT(distAhead);
-    const sy = ROAD_HORIZON * H + t * (SQUAD_Y_FRAC * H - ROAD_HORIZON * H);
+    const sy = ROAD_HORIZON * H + t * (getEffectiveSquadY() - ROAD_HORIZON * H);
     const scale = scaleAtY(sy);
     const roadHalf = roadHalfAtY(sy);
 
@@ -1222,7 +1271,7 @@ function drawBullets() {
 function drawSquad() {
   if (state.units <= 0) return;
 
-  const squadSY = H * SQUAD_Y_FRAC;
+  const squadSY = getEffectiveSquadY();
   const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
@@ -1358,25 +1407,102 @@ function drawColorOrbs() {
   }
 }
 
+// ── Bottom stack zone (below squad) ──────────
+function drawBottomStackZone() {
+  if (state.stackOrbs.length === 0) return;
+
+  const stackH = getStackHeightPx();
+  const cappedH = Math.min(stackH, H * STACK_MAX_HEIGHT_FRAC);
+  const zoneTop = H - cappedH;
+
+  const roadL = W / 2 - ROAD_WIDTH_BOTTOM / 2 * W;
+  const roadR = W / 2 + ROAD_WIDTH_BOTTOM / 2 * W;
+
+  // Dark background
+  const zoneGrad = ctx.createLinearGradient(0, zoneTop - 12, 0, H);
+  zoneGrad.addColorStop(0, 'rgba(10,10,30,0)');
+  zoneGrad.addColorStop(0.08, 'rgba(10,10,30,0.6)');
+  zoneGrad.addColorStop(1, 'rgba(10,10,30,0.82)');
+  ctx.fillStyle = zoneGrad;
+  ctx.fillRect(roadL, zoneTop - 12, roadR - roadL, cappedH + 12);
+
+  // Top divider
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(roadL + 8, zoneTop);
+  ctx.lineTo(roadR - 8, zoneTop);
+  ctx.stroke();
+
+  // Draw stacked orbs
+  const orbsPerRow = getStackOrbsPerRow();
+  const orbDiam = STACK_ORB_R * 2 + STACK_ORB_GAP;
+  const rowWidth = orbsPerRow * orbDiam;
+  const startX = W / 2 - rowWidth / 2 + STACK_ORB_R + STACK_ORB_GAP / 2;
+
+  for (let i = 0; i < state.stackOrbs.length; i++) {
+    const col = i % orbsPerRow;
+    const row = Math.floor(i / orbsPerRow);
+    const orbX = startX + col * orbDiam;
+    const orbY = H - STACK_ORB_R - STACK_ORB_GAP - row * orbDiam;
+
+    if (orbY < zoneTop - STACK_ORB_R) continue;
+
+    const color = state.stackOrbs[i];
+    const isRed = color === 'red';
+
+    // Near-match glow (2 consecutive same color)
+    let nearMatch = false;
+    if (i > 0 && state.stackOrbs[i - 1] === color) nearMatch = true;
+    if (i < state.stackOrbs.length - 1 && state.stackOrbs[i + 1] === color) nearMatch = true;
+
+    ctx.shadowColor = isRed ? '#ff0000' : '#0066ff';
+    ctx.shadowBlur = nearMatch ? 18 : 5;
+
+    // Outer rim
+    ctx.fillStyle = isRed ? '#ffaaaa' : '#aaccff';
+    ctx.beginPath();
+    ctx.arc(orbX, orbY, STACK_ORB_R + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = isRed ? '#ff4444' : '#4488ff';
+    ctx.beginPath();
+    ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Shine
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.arc(orbX - STACK_ORB_R * 0.3, orbY - STACK_ORB_R * 0.3, STACK_ORB_R * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // Stack count label
+  ctx.font = '700 12px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText(`堆栈 ${state.stackOrbs.length}`, W / 2, zoneTop - 2);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
 // ── Color Combo HUD (bottom-right) ───────────
 function drawColorComboHUD() {
-  const PAD      = 14;
-  const PIP_R    = 9;   // radius of each token pip
-  const PIP_GAP  = 6;
-  const ROW_H    = 30;
-  const BUFF_R   = 10;  // radius of each stacked-buff orb
+  const PAD     = 14;
+  const BUFF_R  = 12;
   const BUFF_GAP = 6;
-  const colors   = ['red', 'blue'];
 
-  // Panel width must fit: label(16) + 3 pips + padding
-  const panelW = PAD + 16 + 3 * (PIP_R * 2 + PIP_GAP) + PAD;
-
-  // Buff orbs row height (only if there are buffs)
   const buffCount = state.activeBuffs.length;
-  const buffRowH  = buffCount > 0 ? 8 + BUFF_R * 2 + 8 : 0;
+  if (buffCount === 0) return;
 
-  // Title row + 2 pip rows + buff row
-  const panelH = PAD + 14 + colors.length * ROW_H + buffRowH + PAD;
+  const step = BUFF_R * 2 + BUFF_GAP;
+  const panelW = PAD * 2 + Math.min(buffCount, 5) * step;
+  const rows = Math.ceil(buffCount / 5);
+  const panelH = PAD + 16 + rows * step + PAD;
 
   const px = W - panelW - 12;
   const py = H - panelH - 12;
@@ -1387,7 +1513,6 @@ function drawColorComboHUD() {
   roundRect(px, py, panelW, panelH, 12);
   ctx.fill();
 
-  // Border
   ctx.globalAlpha = 0.5;
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineWidth = 1;
@@ -1401,120 +1526,48 @@ function drawColorComboHUD() {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText('颜色组合', px + PAD, py + PAD - 2);
+  ctx.fillText('三消加成', px + PAD, py + PAD - 2);
 
-  // ── Token pip rows ──────────────────────────
-  let rowY = py + PAD + 14;
-  for (const color of colors) {
-    const count  = state.colorTokens[color];
-    const isRed  = color === 'red';
-    const filled = isRed ? '#ff4444' : '#4488ff';
-    const glow   = isRed ? '#ff0000' : '#0055ff';
-    const empty  = isRed ? 'rgba(255,80,80,0.18)' : 'rgba(60,130,255,0.18)';
-    const label  = isRed ? '红' : '蓝';
+  // Buff orbs
+  const startY = py + PAD + 16 + BUFF_R;
+  for (let i = 0; i < buffCount; i++) {
+    const buff  = state.activeBuffs[i];
+    const isRed = buff.color === 'red';
+    const core  = isRed ? '#ff4444' : '#4488ff';
+    const glow  = isRed ? '#ff0000' : '#0055ff';
+    const rim   = isRed ? '#ffaaaa' : '#aaccff';
 
-    const cy = rowY + ROW_H / 2;
+    const col = i % 5;
+    const row = Math.floor(i / 5);
+    const bx  = px + PAD + BUFF_R + col * step;
+    const by  = startY + row * step;
 
-    // Color label
-    ctx.font = '700 12px "Segoe UI", sans-serif';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = filled;
-    ctx.fillText(label, px + PAD, cy);
-
-    // 3 pip orbs
-    for (let i = 0; i < 3; i++) {
-      const cx = px + PAD + 20 + i * (PIP_R * 2 + PIP_GAP) + PIP_R;
-      const active = i < count;
-
-      if (active) {
-        // Glow
-        ctx.shadowColor = glow;
-        ctx.shadowBlur  = 12;
-        // Rim
-        ctx.fillStyle = isRed ? '#ffaaaa' : '#aaccff';
-        ctx.beginPath();
-        ctx.arc(cx, cy, PIP_R + 1.5, 0, Math.PI * 2);
-        ctx.fill();
-        // Core
-        ctx.fillStyle = filled;
-        ctx.beginPath();
-        ctx.arc(cx, cy, PIP_R, 0, Math.PI * 2);
-        ctx.fill();
-        // Shine
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.beginPath();
-        ctx.arc(cx - PIP_R * 0.28, cy - PIP_R * 0.28, PIP_R * 0.32, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.shadowBlur = 0;
-        ctx.fillStyle  = empty;
-        ctx.beginPath();
-        ctx.arc(cx, cy, PIP_R, 0, Math.PI * 2);
-        ctx.fill();
-        // Empty ring
-        ctx.strokeStyle = isRed ? 'rgba(255,80,80,0.35)' : 'rgba(60,130,255,0.35)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, PIP_R, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
-    ctx.shadowBlur = 0;
-    rowY += ROW_H;
-  }
-
-  // ── Stacked buff orbs ───────────────────────
-  if (buffCount > 0) {
-    // Divider
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.lineWidth = 1;
+    ctx.shadowColor = glow;
+    ctx.shadowBlur  = 14;
+    ctx.fillStyle = rim;
     ctx.beginPath();
-    ctx.moveTo(px + PAD, rowY + 4);
-    ctx.lineTo(px + panelW - PAD, rowY + 4);
-    ctx.stroke();
+    ctx.arc(bx, by, BUFF_R + 2, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Draw buff orbs left-to-right, wrapping if needed
-    const orbY  = rowY + 8 + BUFF_R;
-    let   orbX  = px + PAD + BUFF_R;
-    const step  = BUFF_R * 2 + BUFF_GAP;
-    const maxPerRow = Math.floor((panelW - PAD * 2) / step);
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(bx, by, BUFF_R, 0, Math.PI * 2);
+    ctx.fill();
 
-    for (let i = 0; i < buffCount; i++) {
-      const buff  = state.activeBuffs[i];
-      const isRed = buff.color === 'red';
-      const core  = isRed ? '#ff4444' : '#4488ff';
-      const glow  = isRed ? '#ff0000' : '#0055ff';
-      const rim   = isRed ? '#ffaaaa' : '#aaccff';
-
-      const col = i % maxPerRow;
-      const row = Math.floor(i / maxPerRow);
-      const bx  = px + PAD + BUFF_R + col * step;
-      const by  = orbY + row * (BUFF_R * 2 + BUFF_GAP);
-
-      // Glow
-      ctx.shadowColor = glow;
-      ctx.shadowBlur  = 14;
-      // Rim
-      ctx.fillStyle = rim;
-      ctx.beginPath();
-      ctx.arc(bx, by, BUFF_R + 2, 0, Math.PI * 2);
-      ctx.fill();
-      // Core
-      ctx.fillStyle = core;
-      ctx.beginPath();
-      ctx.arc(bx, by, BUFF_R, 0, Math.PI * 2);
-      ctx.fill();
-      // Shine
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.beginPath();
-      ctx.arc(bx - BUFF_R * 0.3, by - BUFF_R * 0.3, BUFF_R * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-    }
     ctx.shadowBlur = 0;
-  }
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath();
+    ctx.arc(bx - BUFF_R * 0.3, by - BUFF_R * 0.3, BUFF_R * 0.35, 0, Math.PI * 2);
+    ctx.fill();
 
+    // Buff label
+    ctx.font = '800 10px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(buff.label, bx, by);
+  }
+  ctx.shadowBlur = 0;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }

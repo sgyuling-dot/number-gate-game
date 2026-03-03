@@ -75,18 +75,7 @@ body {
 
 /* ── Combo Mode Toggle ─────────────────────── */
 #combo-mode-toggle {
-  position: fixed;
-  top: 64px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 20px;
-  padding: 6px 18px;
-  pointer-events: all;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  display: none;
 }
 
 #combo-mode-toggle label {
