@@ -35,105 +35,68 @@ comboModeCheckbox.addEventListener('change', () => {
 // ══════════════════════════════════════════════
 //  LEVEL DATA
 //  Each level: array of rows (gate or wave)
-//  gate: { type:'gate', left:{op,val}, right:{op,val} }
-//    op: 'add'|'sub'|'mul'  (add=+N, sub=-N, mul=×N)
+//  gate: { type:'gate', left:{color}, right:{color} }
+//    color: 'red'|'yellow'|'blue' — passing gives 1 floating orb of that color
 //  wave: { type:'wave', count:N }
 // ══════════════════════════════════════════════
+const COLORS3 = ['red', 'yellow', 'blue'];
+function randColor() { return COLORS3[Math.floor(Math.random() * 3)]; }
+function gateRow() { return {type:'gate', left:{color:randColor()}, right:{color:randColor()}}; }
 const LEVELS = [
-  // Level 1 — tutorial (red=sub, blue=mul only)
+  // Level 1
   { rows:[
-    {type:'gate', left:{op:'sub',val:1}, right:{op:'mul',val:2}},
-    {type:'wave', count:4},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:2}},
-    {type:'wave', count:6},
-    {type:'gate', left:{op:'sub',val:3}, right:{op:'mul',val:2}},
-    {type:'wave', count:8},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:2}},
-    {type:'wave', count:6},
-    {type:'gate', left:{op:'sub',val:1}, right:{op:'mul',val:2}},
-    {type:'wave', count:8},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:3}},
-    {type:'wave', count:10},
+    gateRow(), {type:'wave', count:4},
+    gateRow(), {type:'wave', count:6},
+    gateRow(), {type:'wave', count:8},
+    gateRow(), {type:'wave', count:6},
+    gateRow(), {type:'wave', count:8},
+    gateRow(), {type:'wave', count:10},
   ]},
   // Level 2
   { rows:[
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:3}},
-    {type:'wave', count:8},
-    {type:'gate', left:{op:'sub',val:4}, right:{op:'mul',val:2}},
-    {type:'wave', count:10},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:5}},
-    {type:'wave', count:10},
-    {type:'gate', left:{op:'sub',val:3}, right:{op:'mul',val:3}},
-    {type:'wave', count:12},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:6}},
-    {type:'wave', count:14},
-    {type:'gate', left:{op:'sub',val:4}, right:{op:'mul',val:2}},
-    {type:'wave', count:14},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
-    {type:'wave', count:16},
+    gateRow(), {type:'wave', count:8},
+    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:12},
+    gateRow(), {type:'wave', count:14},
+    gateRow(), {type:'wave', count:14},
+    gateRow(), {type:'wave', count:16},
   ]},
   // Level 3
   { rows:[
-    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:5}},
-    {type:'wave', count:12},
-    {type:'gate', left:{op:'sub',val:6}, right:{op:'mul',val:2}},
-    {type:'wave', count:14},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:7}},
-    {type:'wave', count:14},
-    {type:'gate', left:{op:'sub',val:5}, right:{op:'mul',val:2}},
-    {type:'wave', count:16},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
-    {type:'wave', count:16},
-    {type:'gate', left:{op:'sub',val:6}, right:{op:'mul',val:3}},
-    {type:'wave', count:18},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:10}},
-    {type:'wave', count:18},
-    {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
-    {type:'wave', count:20},
+    gateRow(), {type:'wave', count:12},
+    gateRow(), {type:'wave', count:14},
+    gateRow(), {type:'wave', count:14},
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:20},
   ]},
   // Level 4
   { rows:[
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:8}},
-    {type:'wave', count:16},
-    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:2}},
-    {type:'wave', count:18},
-    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:12}},
-    {type:'wave', count:18},
-    {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
-    {type:'wave', count:20},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:10}},
-    {type:'wave', count:22},
-    {type:'gate', left:{op:'sub',val:6}, right:{op:'mul',val:3}},
-    {type:'wave', count:22},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:12}},
-    {type:'wave', count:24},
-    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:2}},
-    {type:'wave', count:26},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
-    {type:'wave', count:28},
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:20},
+    gateRow(), {type:'wave', count:22},
+    gateRow(), {type:'wave', count:22},
+    gateRow(), {type:'wave', count:24},
+    gateRow(), {type:'wave', count:26},
+    gateRow(), {type:'wave', count:28},
   ]},
   // Level 5 — Boss
   { rows:[
-    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:10}},
-    {type:'wave', count:20},
-    {type:'gate', left:{op:'sub',val:12}, right:{op:'mul',val:2}},
-    {type:'wave', count:22},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:15}},
-    {type:'wave', count:24},
-    {type:'gate', left:{op:'sub',val:10}, right:{op:'mul',val:3}},
-    {type:'wave', count:26},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:12}},
-    {type:'wave', count:28},
-    {type:'gate', left:{op:'sub',val:8}, right:{op:'mul',val:2}},
-    {type:'wave', count:30},
-    {type:'gate', left:{op:'mul',val:2}, right:{op:'sub',val:18}},
-    {type:'wave', count:32},
-    {type:'gate', left:{op:'sub',val:15}, right:{op:'mul',val:2}},
-    {type:'wave', count:34},
-    {type:'gate', left:{op:'mul',val:3}, right:{op:'sub',val:20}},
-    {type:'wave', count:36},
-    {type:'gate', left:{op:'sub',val:18}, right:{op:'mul',val:2}},
-    {type:'wave', count:40},
+    gateRow(), {type:'wave', count:20},
+    gateRow(), {type:'wave', count:22},
+    gateRow(), {type:'wave', count:24},
+    gateRow(), {type:'wave', count:26},
+    gateRow(), {type:'wave', count:28},
+    gateRow(), {type:'wave', count:30},
+    gateRow(), {type:'wave', count:32},
+    gateRow(), {type:'wave', count:34},
+    gateRow(), {type:'wave', count:36},
+    gateRow(), {type:'wave', count:40},
   ]},
 ];
 
@@ -379,30 +342,13 @@ function levelWin() {
 }
 
 // ══════════════════════════════════════════════
-//  APPLY GATE EFFECT
+//  APPLY GATE EFFECT — spawn 1 floating orb of the gate's color
 // ══════════════════════════════════════════════
 function applyGate(side) {
-  const color = side.op === 'sub' ? 'red' : 'blue';
+  const color = side.color;
   state.gateFlash = { color, timer: 18 };
-
-  if (side.op === 'sub') {
-    state.units = Math.max(0, state.units - side.val);
-  } else if (side.op === 'mul') {
-    state.units = Math.min(MAX_UNITS, state.units * side.val);
-  }
-
-  updateHUD();
-  buildSoldiers();
-
-  if (state.comboMode) {
-    const sy = getEffectiveSquadY();
-    spawnColorOrbAt(state.squadX - 15, sy - 20, color);
-    spawnColorOrbAt(state.squadX + 15, sy - 20, color);
-  }
-
-  if (state.units <= 0) {
-    setTimeout(gameOver, 300);
-  }
+  const sy = getEffectiveSquadY();
+  spawnColorOrbAt(state.squadX, sy - 20, color);
 }
 
 // ══════════════════════════════════════════════
@@ -443,16 +389,8 @@ function resolveStackMatches() {
 }
 
 function applyColorBuff(color) {
-  if (color === 'red') {
-    state.units = Math.min(MAX_UNITS, state.units + 5);
-    state.activeBuffs.push({ color: 'red', label: '+5' });
-  } else if (color === 'blue') {
-    state.units = Math.min(MAX_UNITS, state.units * 2);
-    state.activeBuffs.push({ color: 'blue', label: '×2' });
-  } else if (color === 'yellow') {
-    state.units = Math.min(MAX_UNITS, state.units + 3);
-    state.activeBuffs.push({ color: 'yellow', label: '+3' });
-  }
+  state.units = Math.min(MAX_UNITS, state.units + 1);
+  state.activeBuffs.push({ color, label: '+1' });
   updateHUD();
   buildSoldiers();
   state.gateFlash = { color, timer: 24 };
@@ -594,7 +532,6 @@ function updateWorld() {
         row.passed = true;
         const side = state.squadX < W / 2 ? row.left : row.right;
         applyGate(side);
-        if (state.units <= 0) return;
       }
     } else if (row.type === 'wave') {
       // Pre-spawn enemies when they are one ROW_SPACING ahead (near horizon)
@@ -1112,80 +1049,76 @@ function drawGates() {
 }
 
 function drawGatePanel(side, x1, x2, y1, y2, scale) {
-  const isRed = side.op === 'sub';
+  const gc = side.color;
   const w = x2 - x1;
   const h = y2 - y1;
   const cx = (x1 + x2) / 2;
   const cy = (y1 + y2) / 2;
 
-  // Panel background — strong gradient fill
+  const palette = gc === 'red'
+    ? { bg0:'rgba(220,30,50,0.82)', bg1:'rgba(200,25,40,0.75)', bg2:'rgba(180,20,35,0.82)',
+        glow0:'rgba(255,80,100,0)', glow1:'rgba(255,100,120,0.25)',
+        bar:'#cc1a2a', dark:'#8a1520', hi:'rgba(255,120,140,0.3)',
+        orb:'#ff4444', orbGlow:'#ff0000', orbRim:'#ffaaaa' }
+    : gc === 'yellow'
+    ? { bg0:'rgba(210,170,20,0.82)', bg1:'rgba(190,150,15,0.75)', bg2:'rgba(170,130,10,0.82)',
+        glow0:'rgba(255,220,80,0)', glow1:'rgba(255,230,100,0.25)',
+        bar:'#cc9a1a', dark:'#8a6a10', hi:'rgba(255,220,120,0.3)',
+        orb:'#ffcc00', orbGlow:'#ff9900', orbRim:'#ffee88' }
+    : { bg0:'rgba(30,100,220,0.82)', bg1:'rgba(25,90,200,0.75)', bg2:'rgba(20,80,180,0.82)',
+        glow0:'rgba(80,150,255,0)', glow1:'rgba(100,170,255,0.25)',
+        bar:'#1a5acc', dark:'#12408a', hi:'rgba(120,180,255,0.3)',
+        orb:'#4488ff', orbGlow:'#0055ff', orbRim:'#aaccff' };
+
+  // Panel background
   const panelGrad = ctx.createLinearGradient(x1, y1, x1, y2);
-  if (isRed) {
-    panelGrad.addColorStop(0, 'rgba(220,30,50,0.82)');
-    panelGrad.addColorStop(0.5, 'rgba(200,25,40,0.75)');
-    panelGrad.addColorStop(1, 'rgba(180,20,35,0.82)');
-  } else {
-    panelGrad.addColorStop(0, 'rgba(30,100,220,0.82)');
-    panelGrad.addColorStop(0.5, 'rgba(25,90,200,0.75)');
-    panelGrad.addColorStop(1, 'rgba(20,80,180,0.82)');
-  }
+  panelGrad.addColorStop(0, palette.bg0);
+  panelGrad.addColorStop(0.5, palette.bg1);
+  panelGrad.addColorStop(1, palette.bg2);
   ctx.fillStyle = panelGrad;
   ctx.fillRect(x1, y1, w, h);
 
-  // Inner glow (lighter center stripe)
+  // Inner glow
   const glowGrad = ctx.createLinearGradient(x1, y1, x2, y1);
-  if (isRed) {
-    glowGrad.addColorStop(0, 'rgba(255,80,100,0)');
-    glowGrad.addColorStop(0.5, 'rgba(255,100,120,0.25)');
-    glowGrad.addColorStop(1, 'rgba(255,80,100,0)');
-  } else {
-    glowGrad.addColorStop(0, 'rgba(80,150,255,0)');
-    glowGrad.addColorStop(0.5, 'rgba(100,170,255,0.25)');
-    glowGrad.addColorStop(1, 'rgba(80,150,255,0)');
-  }
+  glowGrad.addColorStop(0, palette.glow0);
+  glowGrad.addColorStop(0.5, palette.glow1);
+  glowGrad.addColorStop(1, palette.glow0);
   ctx.fillStyle = glowGrad;
   ctx.fillRect(x1, y1, w, h);
 
-  // Top bar
+  // Top / bottom bars
   const barH = Math.max(6, 12 * scale);
-  ctx.fillStyle = isRed ? '#cc1a2a' : '#1a5acc';
+  ctx.fillStyle = palette.bar;
   ctx.fillRect(x1, y1, w, barH);
-
-  // Bottom bar
   ctx.fillRect(x1, y2 - barH, w, barH);
 
   // Side pillars
   const postW = Math.max(5, 10 * scale);
-  const darkColor = isRed ? '#8a1520' : '#12408a';
-  ctx.fillStyle = darkColor;
+  ctx.fillStyle = palette.dark;
   ctx.fillRect(x1, y1, postW, h);
   ctx.fillRect(x2 - postW, y1, postW, h);
-
-  // Pillar highlight
-  ctx.fillStyle = isRed ? 'rgba(255,120,140,0.3)' : 'rgba(120,180,255,0.3)';
+  ctx.fillStyle = palette.hi;
   ctx.fillRect(x1 + 1, y1, postW * 0.4, h);
   ctx.fillRect(x2 - postW + 1, y1, postW * 0.4, h);
 
-  // Label
-  let label = '';
-  if (side.op === 'sub') label = `-${side.val}`;
-  else if (side.op === 'mul') label = `×${side.val}`;
-
-  const fontSize = Math.max(18, 36 * scale);
-  ctx.font = `900 ${fontSize}px 'Segoe UI', sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Text shadow (dark)
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillText(label, cx + 2 * scale, cy + 2 * scale);
-
-  // Text glow
-  ctx.shadowColor = isRed ? '#ff4466' : '#4488ff';
-  ctx.shadowBlur = 14 * scale;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(label, cx, cy);
+  // Orb icon in center
+  const orbR = Math.max(10, 20 * scale);
+  ctx.shadowColor = palette.orbGlow;
+  ctx.shadowBlur = 16 * scale;
+  ctx.fillStyle = palette.orbRim;
+  ctx.beginPath();
+  ctx.arc(cx, cy, orbR + 3 * scale, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = palette.orb;
+  ctx.beginPath();
+  ctx.arc(cx, cy, orbR, 0, Math.PI * 2);
+  ctx.fill();
   ctx.shadowBlur = 0;
+  // Orb highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.beginPath();
+  ctx.arc(cx - orbR * 0.3, cy - orbR * 0.3, orbR * 0.35, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // ── Enemies ─────────────────────────────────
@@ -1523,7 +1456,7 @@ function drawColorComboHUD() {
   const panelH = PAD + 16 + rows * step + PAD;
 
   const px = W - panelW - 12;
-  const py = H - panelH - 12;
+  const py = 44;
 
   // Panel background
   ctx.globalAlpha = 0.82;
