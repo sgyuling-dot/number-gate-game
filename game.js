@@ -41,7 +41,8 @@ comboModeCheckbox.addEventListener('change', () => {
 // ══════════════════════════════════════════════
 const COLORS3 = ['red', 'yellow', 'blue'];
 function randColor() { return COLORS3[Math.floor(Math.random() * 3)]; }
-function gateRow() { return {type:'gate', left:{color:randColor()}, right:{color:randColor()}}; }
+function randColorExcept(c) { const opts = COLORS3.filter(x => x !== c); return opts[Math.floor(Math.random() * opts.length)]; }
+function gateRow() { const l = randColor(); return {type:'gate', left:{color:l}, right:{color:randColorExcept(l)}}; }
 const LEVELS = [
   // Level 1
   { rows:[
@@ -107,7 +108,7 @@ const ROAD_WIDTH_BOTTOM = 0.92;  // fraction of W at bottom
 const ROAD_WIDTH_TOP    = 0.40;  // fraction of W at top
 const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
 const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
-const SCROLL_SPEED      = 3.5;   // world scroll px/frame
+const SCROLL_SPEED      = 2.8;   // world scroll px/frame
 const UNIT_R            = 7;     // soldier body radius
 const HEAD_R            = 4.5;
 const ENEMY_R           = 9;
