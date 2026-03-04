@@ -368,23 +368,71 @@ function collectToStack(color) {
 }
 
 function resolveStackMatches() {
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let i = 0; i <= state.stackOrbs.length - 3; i++) {
-      if (state.stackOrbs[i] === state.stackOrbs[i + 1] &&
-          state.stackOrbs[i + 1] === state.stackOrbs[i + 2]) {
-        const color = state.stackOrbs[i];
-        let runEnd = i + 3;
-        while (runEnd < state.stackOrbs.length && state.stackOrbs[runEnd] === color) runEnd++;
-        const runLen = runEnd - i;
-        const buffs = Math.floor(runLen / 3);
-        state.stackOrbs.splice(i, buffs * 3);
-        for (let b = 0; b < buffs; b++) applyColorBuff(color);
-        changed = true;
-        break;
+  const cols = getStackOrbsPerRow();
+  let looping = true;
+
+  while (looping) {
+    looping = false;
+    const orbs = state.stackOrbs;
+    const len = orbs.length;
+    if (len < 3) break;
+
+    const rows = Math.ceil(len / cols);
+    const toRemove = new Set();
+
+    // --- Horizontal scan (each row) ---
+    for (let r = 0; r < rows; r++) {
+      const rowStart = r * cols;
+      const rowEnd = Math.min(rowStart + cols, len);
+      let s = rowStart;
+      while (s < rowEnd) {
+        let e = s + 1;
+        while (e < rowEnd && orbs[e] === orbs[s]) e++;
+        if (e - s >= 3) {
+          for (let k = s; k < e; k++) toRemove.add(k);
+        }
+        s = e;
       }
     }
+
+    // --- Vertical scan (each column) ---
+    for (let c = 0; c < cols; c++) {
+      const colIdx = [];
+      for (let r = 0; r < rows; r++) {
+        const idx = r * cols + c;
+        if (idx < len) colIdx.push(idx);
+      }
+      let s = 0;
+      while (s < colIdx.length) {
+        let e = s + 1;
+        while (e < colIdx.length && orbs[colIdx[e]] === orbs[colIdx[s]]) e++;
+        if (e - s >= 3) {
+          for (let k = s; k < e; k++) toRemove.add(colIdx[k]);
+        }
+        s = e;
+      }
+    }
+
+    if (toRemove.size === 0) break;
+
+    // --- Tally removed orbs by color for rewards ---
+    const colorCounts = {};
+    for (const idx of toRemove) {
+      const c = orbs[idx];
+      colorCounts[c] = (colorCounts[c] || 0) + 1;
+    }
+
+    // --- Remove in descending index order to keep array consistent ---
+    const sorted = [...toRemove].sort((a, b) => b - a);
+    for (const idx of sorted) state.stackOrbs.splice(idx, 1);
+
+    // --- Award buffs: floor(count/3) per color ---
+    for (const [color, count] of Object.entries(colorCounts)) {
+      const buffs = Math.floor(count / 3);
+      for (let b = 0; b < buffs; b++) applyColorBuff(color);
+    }
+
+    looping = true;
   }
 }
 
@@ -1402,10 +1450,12 @@ function drawBottomStackZone() {
     const rimC    = color === 'red' ? '#ffaaaa' : color === 'yellow' ? '#ffee88' : '#aaccff';
     const coreC   = color === 'red' ? '#ff4444' : color === 'yellow' ? '#ffcc00' : '#4488ff';
 
-    // Near-match glow (2 consecutive same color)
+    // Near-match glow (2 consecutive same color, horizontal or vertical)
     let nearMatch = false;
     if (i > 0 && state.stackOrbs[i - 1] === color) nearMatch = true;
     if (i < state.stackOrbs.length - 1 && state.stackOrbs[i + 1] === color) nearMatch = true;
+    if (i >= orbsPerRow && state.stackOrbs[i - orbsPerRow] === color) nearMatch = true;
+    if (i + orbsPerRow < state.stackOrbs.length && state.stackOrbs[i + orbsPerRow] === color) nearMatch = true;
 
     ctx.shadowColor = shadowC;
     ctx.shadowBlur = nearMatch ? 18 : 5;
