@@ -178,6 +178,7 @@ function defaultState(levelIdx) {
     level: levelIdx,
     units: 5,
     squadX: 0,           // screen pixel X of squad center (set in startLevel)
+    squadY: 0,           // screen pixel Y of squad center (set in startLevel)
     scrollY: 0,          // total scroll distance
     rows: [],            // built from level data
     rowIdx: 0,
@@ -207,6 +208,7 @@ function startLevel(levelIdx) {
   const prevStack = state.stackOrbs || [];
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
+  state.squadY   = getEffectiveSquadY();
   state.comboMode = true;
   // Carry buffs and stack across levels for progression feel
   state.activeBuffs = prevBuffs;
@@ -230,7 +232,7 @@ function startLevel(levelIdx) {
 function buildSoldiers() {
   // Arrange N soldiers in a tight circular cluster
   const n = state.units;
-  const squadSY = getEffectiveSquadY();
+  const squadSY = state.squadY;
   const scale   = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
 
@@ -290,28 +292,40 @@ function updateHUD() {
 // ══════════════════════════════════════════════
 let dragActive = false;
 let lastDragX  = 0;
+let lastDragY  = 0;
 
-canvas.addEventListener('mousedown', e => { dragActive = true; lastDragX = e.clientX; });
+function clampSquadPos(dx, dy) {
+  const margin = 60;
+  state.squadX = Math.max(margin, Math.min(W - margin, state.squadX + dx));
+  const topLimit = H * 0.30;
+  const botLimit = getEffectiveSquadY();
+  state.squadY = Math.max(topLimit, Math.min(botLimit, state.squadY + dy));
+}
+
+canvas.addEventListener('mousedown', e => { dragActive = true; lastDragX = e.clientX; lastDragY = e.clientY; });
 window.addEventListener('mouseup',   () => { dragActive = false; });
 window.addEventListener('mousemove', e => {
   if (!dragActive || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.clientX - lastDragX;
+  const dy = e.clientY - lastDragY;
   lastDragX = e.clientX;
-  const margin = 60;
-  state.squadX = Math.max(margin, Math.min(W - margin, state.squadX + dx));
+  lastDragY = e.clientY;
+  clampSquadPos(dx, dy);
 });
 
 canvas.addEventListener('touchstart', e => {
   dragActive = true;
   lastDragX = e.touches[0].clientX;
+  lastDragY = e.touches[0].clientY;
 }, { passive: true });
 window.addEventListener('touchend', () => { dragActive = false; });
 window.addEventListener('touchmove', e => {
   if (!dragActive || state.phase === 'dead' || state.phase === 'win') return;
   const dx = e.touches[0].clientX - lastDragX;
+  const dy = e.touches[0].clientY - lastDragY;
   lastDragX = e.touches[0].clientX;
-  const margin = 60;
-  state.squadX = Math.max(margin, Math.min(W - margin, state.squadX + dx));
+  lastDragY = e.touches[0].clientY;
+  clampSquadPos(dx, dy);
 }, { passive: true });
 
 // ══════════════════════════════════════════════
@@ -347,7 +361,7 @@ function levelWin() {
 function applyGate(side) {
   const color = side.color;
   state.gateFlash = { color, timer: 18 };
-  const sy = getEffectiveSquadY();
+  const sy = state.squadY;
   spawnColorOrbAt(state.squadX, sy - 20, color);
 }
 
@@ -446,7 +460,7 @@ function applyColorBuff(color) {
 
 function spawnTokenParticles(color) {
   const cx = state.squadX;
-  const cy = getEffectiveSquadY() - 30;
+  const cy = state.squadY - 30;
   const c  = color === 'red' ? '#ff5555' : color === 'yellow' ? '#ffcc44' : '#5599ff';
   spawnParticles(cx, cy, c, 8);
 }
@@ -509,8 +523,8 @@ function enemyScreenPos(e) {
   const t = perspT(distAhead);
 
   const horizonY = ROAD_HORIZON * H;
-  const squadY   = getEffectiveSquadY();
-  const baseY    = horizonY + t * (squadY - horizonY);
+  const sqY      = state.squadY;
+  const baseY    = horizonY + t * (sqY - horizonY);
 
   const scale    = scaleAtY(baseY);
   const roadHalf = roadHalfAtY(baseY);
@@ -567,6 +581,9 @@ function update() {
 
 // ── Single unified world update ─────────────
 function updateWorld() {
+  // Clamp squadY if stack pushed the boundary up
+  state.squadY = Math.min(state.squadY, getEffectiveSquadY());
+
   // Always scroll
   state.scrollY += SCROLL_SPEED;
 
@@ -636,7 +653,7 @@ function updateWorld() {
   }
 
   // ── Enemy vs Squad collision ───────────────
-  const squadSY = getEffectiveSquadY();
+  const squadSY = state.squadY;
   const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
   const clusterR = getClusterRadius(state.units) * scale * (UNIT_R * 2 + 3);
@@ -665,7 +682,7 @@ function updateWorld() {
 
   // ── Color orbs (combo mode) ───────────────
   if (state.comboMode) {
-    const squadSY2  = getEffectiveSquadY();
+    const squadSY2  = state.squadY;
     const squadSX2  = state.squadX;
     const scale2    = scaleAtY(squadSY2);
     const collectR  = (getClusterRadius(state.units) + 1) * scale2 * (UNIT_R * 2 + 3) + COLOR_ORB_R + 10;
@@ -721,7 +738,7 @@ function getClusterRadius(n) {
 // ── Fire ────────────────────────────────────
 function fireFromSquad() {
   if (state.enemies.length === 0) return;
-  const squadSY = getEffectiveSquadY();
+  const squadSY = state.squadY;
   const squadSX = state.squadX;
   const scale = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
@@ -1068,7 +1085,7 @@ function drawGates() {
 
     // Use perspective mapping — same as enemyScreenPos
     const t  = perspT(distAhead);
-    const sy = ROAD_HORIZON * H + t * (getEffectiveSquadY() - ROAD_HORIZON * H);
+    const sy = ROAD_HORIZON * H + t * (state.squadY - ROAD_HORIZON * H);
     const scale = scaleAtY(sy);
     const roadHalf = roadHalfAtY(sy);
 
@@ -1267,7 +1284,7 @@ function drawBullets() {
 function drawSquad() {
   if (state.units <= 0) return;
 
-  const squadSY = getEffectiveSquadY();
+  const squadSY = state.squadY;
   const squadSX = state.squadX;
   const scale   = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
