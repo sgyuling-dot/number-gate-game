@@ -39,6 +39,27 @@ comboModeCheckbox.addEventListener('change', () => {
 //    color: 'red'|'yellow'|'blue' — passing gives 1 floating orb of that color
 //  wave: { type:'wave', count:N }
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  RELIC SYSTEM
+// ══════════════════════════════════════════════
+const RELIC_DEFS = {
+  ocean_tear: { name: '海洋之泪', desc: '蓝色消除时额外+1士兵' },
+  rb_blind:   { name: '红蓝色盲', desc: '红/蓝球10%概率变为双色球' },
+  dithering:  { name: '三心二意', desc: '消除时10%额外消除一个相邻球' },
+  desert:     { name: '沙漠',     desc: '黄色消除后转化2个球为黄色' },
+};
+const RELIC_IDS = Object.keys(RELIC_DEFS);
+function chance(p) { return Math.random() < p; }
+function rollRelic() { return RELIC_IDS[Math.floor(Math.random() * RELIC_IDS.length)]; }
+function hasRelic(id) { return !!(state.relics && state.relics[id]); }
+
+function isMatchable(a, b) {
+  if (a === b) return true;
+  if (a === 'dual' && (b === 'red' || b === 'blue')) return true;
+  if (b === 'dual' && (a === 'red' || a === 'blue')) return true;
+  return false;
+}
+
 const COLORS3 = ['red', 'yellow', 'blue'];
 function randColor() { return COLORS3[Math.floor(Math.random() * 3)]; }
 function randColorExcept(c) { const opts = COLORS3.filter(x => x !== c); return opts[Math.floor(Math.random() * opts.length)]; }
@@ -195,8 +216,10 @@ function defaultState(levelIdx) {
     colorTokens: { red: 0, blue: 0 },  // pending tokens 0-2
     activeBuffs: [],                    // [{ color, label }]
     colorOrbs: [],                      // [{ x, y, vx, vy, color, life }]
-    stackOrbs: [],                      // ['red'|'blue', ...] bottom stack
+    stackOrbs: [],                      // ['red'|'blue'|'yellow'|'dual', ...] bottom stack
     soldierColors: [],                  // color per soldier unit
+    relics: {},                         // { relic_id: true }
+    lastRelicGain: null,                // relic id gained at end of last level
   };
 }
 
@@ -209,14 +232,15 @@ function startLevel(levelIdx) {
   const prevBuffs = state.activeBuffs || [];
   const prevStack = state.stackOrbs || [];
   const prevColors = state.soldierColors || [];
+  const prevRelics = state.relics || {};
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
   state.squadY   = getEffectiveSquadY();
   state.comboMode = true;
-  // Carry buffs and stack across levels for progression feel
   state.activeBuffs = prevBuffs;
   state.stackOrbs = prevStack;
   state.soldierColors = prevColors.length ? prevColors : Array(state.units).fill('blue');
+  state.relics = prevRelics;
 
   const def = LEVELS[levelIdx];
   state.rows = def.rows.map((row, i) => ({
@@ -346,6 +370,10 @@ function showOverlay(icon, title, msg, btnText, cb) {
 
 function gameOver() {
   state.phase = 'dead';
+  state.relics = {};
+  state.soldierColors = [];
+  state.stackOrbs = [];
+  state.activeBuffs = [];
   showOverlay('💀','全军覆没！',`第 ${state.level+1} 关失败，单位归零。`,'再来一次', () => startLevel(state.level));
 }
 
@@ -353,9 +381,19 @@ function levelWin() {
   state.phase = 'win';
   const isLast = state.level + 1 >= LEVELS.length;
   if (isLast) {
+    state.relics = {};
+    state.soldierColors = [];
+    state.stackOrbs = [];
+    state.activeBuffs = [];
     showOverlay('🏆','全关通关！',`恭喜完成全部 ${LEVELS.length} 关！剩余单位：${state.units}`,'再玩一次', () => startLevel(0));
   } else {
-    showOverlay('🎉',`第 ${state.level+1} 关通关！`,`剩余单位：${state.units}`,'下一关', () => startLevel(state.level+1));
+    const relicId = rollRelic();
+    state.relics[relicId] = true;
+    const relic = RELIC_DEFS[relicId];
+    const relicList = RELIC_IDS.filter(id => state.relics[id]).map(id => RELIC_DEFS[id].name).join('、');
+    showOverlay('🎉',`第 ${state.level+1} 关通关！`,
+      `剩余单位：${state.units}\n获得遗物：${relic.name}\n${relic.desc}\n\n当前遗物：${relicList}`,
+      '下一关', () => startLevel(state.level+1));
   }
 }
 
@@ -380,8 +418,12 @@ function awardColorToken(color) {
 }
 
 function collectToStack(color) {
+  // rb_blind relic: 10% chance red/blue becomes dual
+  if (hasRelic('rb_blind') && (color === 'red' || color === 'blue') && chance(0.1)) {
+    color = 'dual';
+  }
   state.stackOrbs.push(color);
-  spawnTokenParticles(color);
+  spawnTokenParticles(color === 'dual' ? 'blue' : color);
   resolveStackMatches();
 }
 
@@ -404,8 +446,12 @@ function resolveStackMatches() {
       const rowEnd = Math.min(rowStart + cols, len);
       let s = rowStart;
       while (s < rowEnd) {
+        let runColor = orbs[s];
         let e = s + 1;
-        while (e < rowEnd && orbs[e] === orbs[s]) e++;
+        while (e < rowEnd && isMatchable(orbs[e], runColor)) {
+          if (runColor === 'dual' && orbs[e] !== 'dual') runColor = orbs[e];
+          e++;
+        }
         if (e - s >= 3) {
           for (let k = s; k < e; k++) toRemove.add(k);
         }
@@ -422,8 +468,12 @@ function resolveStackMatches() {
       }
       let s = 0;
       while (s < colIdx.length) {
+        let runColor = orbs[colIdx[s]];
         let e = s + 1;
-        while (e < colIdx.length && orbs[colIdx[e]] === orbs[colIdx[s]]) e++;
+        while (e < colIdx.length && isMatchable(orbs[colIdx[e]], runColor)) {
+          if (runColor === 'dual' && orbs[colIdx[e]] !== 'dual') runColor = orbs[colIdx[e]];
+          e++;
+        }
         if (e - s >= 3) {
           for (let k = s; k < e; k++) toRemove.add(colIdx[k]);
         }
@@ -433,21 +483,74 @@ function resolveStackMatches() {
 
     if (toRemove.size === 0) break;
 
+    // --- Relic: 三心二意 — 10% chance to also remove one adjacent orb ---
+    if (hasRelic('dithering') && chance(0.1)) {
+      const candidates = new Set();
+      for (const idx of toRemove) {
+        const r = Math.floor(idx / cols), c2 = idx % cols;
+        const neighbors = [];
+        if (c2 > 0) neighbors.push(idx - 1);
+        if (c2 < cols - 1 && idx + 1 < len) neighbors.push(idx + 1);
+        if (r > 0) neighbors.push(idx - cols);
+        if (idx + cols < len) neighbors.push(idx + cols);
+        for (const n of neighbors) {
+          if (!toRemove.has(n) && n >= 0 && n < len) candidates.add(n);
+        }
+      }
+      if (candidates.size > 0) {
+        const arr = [...candidates];
+        toRemove.add(arr[Math.floor(Math.random() * arr.length)]);
+      }
+    }
+
     // --- Tally removed orbs by color for rewards ---
     const colorCounts = {};
     for (const idx of toRemove) {
       const c = orbs[idx];
-      colorCounts[c] = (colorCounts[c] || 0) + 1;
+      if (c === 'dual') {
+        colorCounts['red'] = (colorCounts['red'] || 0) + 1;
+        colorCounts['blue'] = (colorCounts['blue'] || 0) + 1;
+      } else {
+        colorCounts[c] = (colorCounts[c] || 0) + 1;
+      }
     }
 
     // --- Remove in descending index order to keep array consistent ---
     const sorted = [...toRemove].sort((a, b) => b - a);
     for (const idx of sorted) state.stackOrbs.splice(idx, 1);
 
+    // --- Relic: 沙漠 — yellow elimination converts 2 non-yellow orbs to yellow ---
+    if (hasRelic('desert') && colorCounts['yellow']) {
+      let converted = 0;
+      const indices = [];
+      for (let i = 0; i < state.stackOrbs.length; i++) {
+        if (state.stackOrbs[i] !== 'yellow') indices.push(i);
+      }
+      for (let t = 0; t < 2 && indices.length > 0; t++) {
+        const pick = Math.floor(Math.random() * indices.length);
+        state.stackOrbs[indices[pick]] = 'yellow';
+        indices.splice(pick, 1);
+        converted++;
+      }
+    }
+
     // --- Award buffs: floor(count/3) per color ---
     for (const [color, count] of Object.entries(colorCounts)) {
       const buffs = Math.floor(count / 3);
       for (let b = 0; b < buffs; b++) applyColorBuff(color);
+    }
+
+    // --- Relic: 海洋之泪 — extra blue soldier per blue match-3 ---
+    if (hasRelic('ocean_tear') && colorCounts['blue']) {
+      const extraBlue = Math.floor(colorCounts['blue'] / 3);
+      for (let b = 0; b < extraBlue; b++) {
+        if (state.units < MAX_UNITS) {
+          state.units++;
+          state.soldierColors.push('blue');
+          updateHUD();
+          buildSoldiers();
+        }
+      }
     }
 
     looping = true;
@@ -793,6 +896,7 @@ function draw() {
   drawGateFlash();
 
   if (state.comboMode) drawColorComboHUD();
+  drawRelicHUD();
 }
 
 // ── Background (winter / Last War style) ────
@@ -1478,16 +1582,17 @@ function drawBottomStackZone() {
     if (orbY < zoneTop - STACK_ORB_R) continue;
 
     const color = state.stackOrbs[i];
-    const shadowC = color === 'red' ? '#ff0000' : color === 'yellow' ? '#ff9900' : '#0066ff';
-    const rimC    = color === 'red' ? '#ffaaaa' : color === 'yellow' ? '#ffee88' : '#aaccff';
-    const coreC   = color === 'red' ? '#ff4444' : color === 'yellow' ? '#ffcc00' : '#4488ff';
+    const isDual = color === 'dual';
+    const shadowC = isDual ? '#aa44ff' : color === 'red' ? '#ff0000' : color === 'yellow' ? '#ff9900' : '#0066ff';
+    const rimC    = isDual ? '#ddaaff' : color === 'red' ? '#ffaaaa' : color === 'yellow' ? '#ffee88' : '#aaccff';
+    const coreC   = isDual ? '#8844cc' : color === 'red' ? '#ff4444' : color === 'yellow' ? '#ffcc00' : '#4488ff';
 
-    // Near-match glow (2 consecutive same color, horizontal or vertical)
+    // Near-match glow (2 consecutive matchable color, horizontal or vertical)
     let nearMatch = false;
-    if (i > 0 && state.stackOrbs[i - 1] === color) nearMatch = true;
-    if (i < state.stackOrbs.length - 1 && state.stackOrbs[i + 1] === color) nearMatch = true;
-    if (i >= orbsPerRow && state.stackOrbs[i - orbsPerRow] === color) nearMatch = true;
-    if (i + orbsPerRow < state.stackOrbs.length && state.stackOrbs[i + orbsPerRow] === color) nearMatch = true;
+    if (i > 0 && isMatchable(state.stackOrbs[i - 1], color)) nearMatch = true;
+    if (i < state.stackOrbs.length - 1 && isMatchable(state.stackOrbs[i + 1], color)) nearMatch = true;
+    if (i >= orbsPerRow && isMatchable(state.stackOrbs[i - orbsPerRow], color)) nearMatch = true;
+    if (i + orbsPerRow < state.stackOrbs.length && isMatchable(state.stackOrbs[i + orbsPerRow], color)) nearMatch = true;
 
     ctx.shadowColor = shadowC;
     ctx.shadowBlur = nearMatch ? 18 : 5;
@@ -1498,11 +1603,23 @@ function drawBottomStackZone() {
     ctx.arc(orbX, orbY, STACK_ORB_R + 2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Core
-    ctx.fillStyle = coreC;
-    ctx.beginPath();
-    ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
-    ctx.fill();
+    if (isDual) {
+      // Split red/blue halves for dual orb
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(orbX - STACK_ORB_R, orbY - STACK_ORB_R, STACK_ORB_R, STACK_ORB_R * 2);
+      ctx.fillStyle = '#4488ff';
+      ctx.fillRect(orbX, orbY - STACK_ORB_R, STACK_ORB_R, STACK_ORB_R * 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = coreC;
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Shine
     ctx.shadowBlur = 0;
@@ -1617,6 +1734,46 @@ function roundRect(x, y, w, h, r) {
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
+}
+
+// ── Relic HUD (left side) ────────────────────
+function drawRelicHUD() {
+  const active = RELIC_IDS.filter(id => state.relics && state.relics[id]);
+  if (active.length === 0) return;
+
+  const px = 8, py = 44;
+  const lineH = 18;
+  const panelH = 10 + active.length * lineH + 6;
+  const panelW = 120;
+
+  ctx.globalAlpha = 0.78;
+  ctx.fillStyle = 'rgba(10, 14, 30, 0.85)';
+  roundRect(px, py, panelW, panelH, 10);
+  ctx.fill();
+  ctx.globalAlpha = 0.4;
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  roundRect(px, py, panelW, panelH, 10);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  ctx.font = '700 10px "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  for (let i = 0; i < active.length; i++) {
+    const def = RELIC_DEFS[active[i]];
+    const iconColors = {
+      ocean_tear: '#4fc3f7',
+      rb_blind:   '#cc66ff',
+      dithering:  '#ff9966',
+      desert:     '#ffcc00',
+    };
+    ctx.fillStyle = iconColors[active[i]] || '#ffffff';
+    ctx.fillText('■ ' + def.name, px + 10, py + 8 + i * lineH);
+  }
+
+  ctx.textBaseline = 'alphabetic';
 }
 
 // ── Wave label ───────────────────────────────
