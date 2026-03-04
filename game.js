@@ -17,8 +17,8 @@ const comboModeCheckbox= document.getElementById('combo-mode-checkbox');
 // ── Canvas resize ────────────────────────────
 let W, H;
 function resize() {
-  W = canvas.width  = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  W = canvas.width  = 402;
+  H = canvas.height = 874;
 }
 resize();
 window.addEventListener('resize', resize);
@@ -140,8 +140,8 @@ const LEVELS = [
 // ══════════════════════════════════════════════
 //  CONSTANTS
 // ══════════════════════════════════════════════
-const ROAD_WIDTH_BOTTOM = 0.44;  // fraction of W at bottom
-const ROAD_WIDTH_TOP    = 0.14;  // fraction of W at top
+const ROAD_WIDTH_BOTTOM = 0.36;  // fraction of W at bottom
+const ROAD_WIDTH_TOP    = 0.10;  // fraction of W at top
 const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
 const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
 const SCROLL_SPEED      = 3.5;   // world scroll px/frame
@@ -409,7 +409,7 @@ function applyGate(side) {
 //  COLOR COMBO SYSTEM
 // ══════════════════════════════════════════════
 const COLOR_ORB_R    = 9;
-const COLOR_ORB_LIFE = 300;  // frames before orb fades
+const COLOR_ORB_LIFE = 600;  // frames before orb fades (~10s @60fps)
 
 function awardColorToken(color) {
   collectToStack(color);
@@ -693,14 +693,20 @@ function updateWorld() {
       orb.life--;
 
       // Wall bounce (left/right road edges at orb height)
-      const roadHalfOrb = roadHalfAtY(orb.y);
+      const roadHalfOrb = roadHalfAtY(Math.min(orb.y, H));
       const leftEdge    = W / 2 - roadHalfOrb;
       const rightEdge   = W / 2 + roadHalfOrb;
       if (orb.x - COLOR_ORB_R < leftEdge)  { orb.x = leftEdge  + COLOR_ORB_R; orb.vx = Math.abs(orb.vx); }
       if (orb.x + COLOR_ORB_R > rightEdge) { orb.x = rightEdge - COLOR_ORB_R; orb.vx = -Math.abs(orb.vx); }
 
-      // Remove if expired or fell below screen
-      if (orb.life <= 0 || orb.y > H + 60) {
+      // Bottom bounce
+      if (orb.y + COLOR_ORB_R > H) {
+        orb.y = H - COLOR_ORB_R;
+        orb.vy = -Math.abs(orb.vy) * 0.7;
+      }
+
+      // Remove only when life expires
+      if (orb.life <= 0) {
         state.colorOrbs.splice(oi, 1);
         continue;
       }
