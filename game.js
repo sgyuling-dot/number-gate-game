@@ -140,8 +140,8 @@ const LEVELS = [
 // ══════════════════════════════════════════════
 //  CONSTANTS
 // ══════════════════════════════════════════════
-const ROAD_WIDTH_BOTTOM = 0.36;  // fraction of W at bottom
-const ROAD_WIDTH_TOP    = 0.10;  // fraction of W at top
+const ROAD_WIDTH_BOTTOM = 0.92;  // fraction of W at bottom
+const ROAD_WIDTH_TOP    = 0.40;  // fraction of W at top
 const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
 const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
 const SCROLL_SPEED      = 3.5;   // world scroll px/frame
@@ -189,7 +189,7 @@ function scaleAtY(sy) {
 
 // ── Bottom stack helpers ─────────────────────
 function getStackOrbsPerRow() {
-  const roadW = ROAD_WIDTH_BOTTOM * W / 5;
+  const roadW = ROAD_WIDTH_BOTTOM * W / 1.25;
   return Math.max(1, Math.floor(roadW / (STACK_ORB_R * 2 + STACK_ORB_GAP)));
 }
 
@@ -1430,7 +1430,7 @@ function drawBottomStackZone() {
   const cappedH = Math.min(stackH, H * STACK_MAX_HEIGHT_FRAC);
   const zoneTop = H - cappedH;
 
-  const stackW = ROAD_WIDTH_BOTTOM * W / 5;
+  const stackW = ROAD_WIDTH_BOTTOM * W / 1.25;
   const stackL = W / 2 - stackW / 2;
   const stackR = W / 2 + stackW / 2;
 
