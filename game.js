@@ -195,6 +195,7 @@ function defaultState(levelIdx) {
     activeBuffs: [],                    // [{ color, label }]
     colorOrbs: [],                      // [{ x, y, vx, vy, color, life }]
     stackOrbs: [],                      // ['red'|'blue', ...] bottom stack
+    soldierColors: [],                  // color per soldier unit
   };
 }
 
@@ -206,6 +207,7 @@ const ROW_SPACING = 420;  // world-scroll units between rows
 function startLevel(levelIdx) {
   const prevBuffs = state.activeBuffs || [];
   const prevStack = state.stackOrbs || [];
+  const prevColors = state.soldierColors || [];
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
   state.squadY   = getEffectiveSquadY();
@@ -213,6 +215,7 @@ function startLevel(levelIdx) {
   // Carry buffs and stack across levels for progression feel
   state.activeBuffs = prevBuffs;
   state.stackOrbs = prevStack;
+  state.soldierColors = prevColors.length ? prevColors : Array(state.units).fill('blue');
 
   const def = LEVELS[levelIdx];
   state.rows = def.rows.map((row, i) => ({
@@ -243,9 +246,9 @@ function buildSoldiers() {
   const positions = circleFormation(n);
   for (let i = 0; i < n; i++) {
     state.soldiers.push({
-      ox: positions[i].x,  // offset from squad center (normalized)
+      ox: positions[i].x,
       oy: positions[i].y,
-      // animation
+      color: state.soldierColors[i] || 'blue',
       bobPhase: Math.random() * Math.PI * 2,
     });
   }
@@ -451,7 +454,10 @@ function resolveStackMatches() {
 }
 
 function applyColorBuff(color) {
-  state.units = Math.min(MAX_UNITS, state.units + 1);
+  if (state.units < MAX_UNITS) {
+    state.units++;
+    state.soldierColors.push(color);
+  }
   state.activeBuffs.push({ color, label: '+1' });
   updateHUD();
   buildSoldiers();
@@ -668,6 +674,7 @@ function updateWorld() {
       spawnParticles(pos.x, pos.y, '#ff8866', 4);
       state.enemies.splice(ei, 1);
       state.units = Math.max(0, state.units - 1);
+      if (state.soldierColors.length > state.units) state.soldierColors.pop();
       updateHUD();
       buildSoldiers();
       if (state.units <= 0) { gameOver(); return; }
@@ -1302,25 +1309,32 @@ function drawSquad() {
     const bob = Math.sin(frameCount * 0.12 + sol.bobPhase) * 1.5 * scale;
     const sx = squadSX + sol.ox * spacing;
     const sy = squadSY + sol.oy * spacing + bob;
-    drawSoldierFigure(sx, sy, scale);
+    drawSoldierFigure(sx, sy, scale, sol.color);
   }
 }
 
-function drawSoldierFigure(x, y, scale) {
+const SOLDIER_PALETTE = {
+  red:    { body: '#c02020', helmet: '#d43030', shadow: '#ff6666', highlight: 'rgba(255,120,120,0.25)', shine: 'rgba(255,180,180,0.3)' },
+  blue:   { body: '#1565c0', helmet: '#1976d2', shadow: '#4fc3f7', highlight: 'rgba(100,180,255,0.2)',  shine: 'rgba(100,200,255,0.3)' },
+  yellow: { body: '#b8860b', helmet: '#cc9a10', shadow: '#f7d34f', highlight: 'rgba(255,220,100,0.25)', shine: 'rgba(255,240,150,0.3)' },
+};
+
+function drawSoldierFigure(x, y, scale, color) {
   const br = UNIT_R * scale;
   const hr = HEAD_R * scale;
+  const pal = SOLDIER_PALETTE[color] || SOLDIER_PALETTE.blue;
 
-  ctx.shadowColor = '#4fc3f7';
+  ctx.shadowColor = pal.shadow;
   ctx.shadowBlur = 8;
 
   // Body
-  ctx.fillStyle = '#1565c0';
+  ctx.fillStyle = pal.body;
   ctx.beginPath();
   ctx.ellipse(x, y + br * 0.3, br * 0.65, br * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Body highlight
-  ctx.fillStyle = 'rgba(100,180,255,0.2)';
+  ctx.fillStyle = pal.highlight;
   ctx.beginPath();
   ctx.ellipse(x - br * 0.15, y + br * 0.1, br * 0.3, br * 0.5, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -1331,14 +1345,14 @@ function drawSoldierFigure(x, y, scale) {
   ctx.arc(x, y - br * 0.6, hr, 0, Math.PI * 2);
   ctx.fill();
 
-  // Helmet (blue)
-  ctx.fillStyle = '#1976d2';
+  // Helmet
+  ctx.fillStyle = pal.helmet;
   ctx.beginPath();
   ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.95, hr * 0.58, 0, Math.PI, Math.PI * 2);
   ctx.fill();
 
   // Helmet shine
-  ctx.fillStyle = 'rgba(100,200,255,0.3)';
+  ctx.fillStyle = pal.shine;
   ctx.beginPath();
   ctx.ellipse(x - hr * 0.2, y - br * 0.6 - hr * 0.45, hr * 0.3, hr * 0.18, -0.3, 0, Math.PI * 2);
   ctx.fill();
