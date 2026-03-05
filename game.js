@@ -43,14 +43,30 @@ comboModeCheckbox.addEventListener('change', () => {
 //  RELIC SYSTEM
 // ══════════════════════════════════════════════
 const RELIC_DEFS = {
-  ocean_tear: { name: '海洋之泪', desc: '蓝色消除时额外+1士兵' },
-  rb_blind:   { name: '红蓝色盲', desc: '红/蓝球10%概率变为双色球' },
-  dithering:  { name: '三心二意', desc: '消除时10%额外消除一个相邻球' },
-  desert:     { name: '沙漠',     desc: '黄色消除后转化2个球为黄色' },
+  ocean_tear:   { name: '海洋之泪',   desc: '蓝色消除时额外+1士兵',             icon: '💧' },
+  rb_blind:     { name: '红蓝色盲',   desc: '红/蓝球10%概率变为双色球',         icon: '🔮' },
+  dithering:    { name: '三心二意',   desc: '消除时10%额外消除一个相邻球',       icon: '💫' },
+  desert:       { name: '沙漠',       desc: '黄色消除后转化2个球为黄色',         icon: '🏜️' },
+  iron_wall:    { name: '铁壁',       desc: '受到伤害时15%概率不损失单位',       icon: '🛡️' },
+  magnet:       { name: '磁石',       desc: '球的吸附半径增大50%',               icon: '🧲' },
+  rapid_fire:   { name: '速射',       desc: '射击间隔缩短25%',                   icon: '🔥' },
+  lucky_clover: { name: '四叶草',     desc: '击杀掉球概率提升至35%',             icon: '🍀' },
+  phoenix:      { name: '凤凰羽',     desc: '单位归零时复活1次(3单位)',           icon: '🪶' },
+  chain_light:  { name: '连锁闪电',   desc: '每次消除后20%概率随机再消一组',     icon: '⚡' },
+  golden_ratio: { name: '黄金比例',   desc: '三色各有1球时自动消除奖励+2兵',     icon: '✨' },
+  frost_armor:  { name: '寒冰护甲',   desc: '墙壁超时时限延长50%',               icon: '❄️' },
 };
 const RELIC_IDS = Object.keys(RELIC_DEFS);
 function chance(p) { return Math.random() < p; }
-function rollRelic() { return RELIC_IDS[Math.floor(Math.random() * RELIC_IDS.length)]; }
+function rollRelicChoices(n) {
+  const pool = [...RELIC_IDS];
+  const picks = [];
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picks.push(pool.splice(idx, 1)[0]);
+  }
+  return picks;
+}
 function hasRelic(id) { return !!(state.relics && state.relics[id]); }
 
 function isMatchable(a, b) {
@@ -64,61 +80,63 @@ const COLORS3 = ['red', 'yellow', 'blue'];
 function randColor() { return COLORS3[Math.floor(Math.random() * 3)]; }
 function randColorExcept(c) { const opts = COLORS3.filter(x => x !== c); return opts[Math.floor(Math.random() * opts.length)]; }
 function gateRow() { const l = randColor(); return {type:'gate', left:{color:l}, right:{color:randColorExcept(l)}}; }
+function wallRow(hp) { return {type:'wall', hp}; }
+const WALL_TIMEOUT_FRAMES = 600; // 10 seconds @60fps to break the wall
 const LEVELS = [
-  // Level 1
+  // Level 1 — Tutorial (gentle)
   { rows:[
+    gateRow(), {type:'wave', count:3},
     gateRow(), {type:'wave', count:4},
-    gateRow(), {type:'wave', count:6},
+    wallRow(5),
+    gateRow(), {type:'wave', count:5},
+    gateRow(), {type:'wave', count:4},
+    wallRow(8),
+  ]},
+  // Level 2 — Easy
+  { rows:[
+    gateRow(), {type:'wave', count:5},
+    gateRow(), {type:'wave', count:7},
     gateRow(), {type:'wave', count:8},
-    gateRow(), {type:'wave', count:6},
+    wallRow(10),
     gateRow(), {type:'wave', count:8},
     gateRow(), {type:'wave', count:10},
+    wallRow(14),
   ]},
-  // Level 2
+  // Level 3 — Medium
   { rows:[
     gateRow(), {type:'wave', count:8},
     gateRow(), {type:'wave', count:10},
-    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:12},
+    wallRow(16),
     gateRow(), {type:'wave', count:12},
     gateRow(), {type:'wave', count:14},
     gateRow(), {type:'wave', count:14},
-    gateRow(), {type:'wave', count:16},
+    wallRow(22),
   ]},
-  // Level 3
+  // Level 4 — Hard
   { rows:[
     gateRow(), {type:'wave', count:12},
     gateRow(), {type:'wave', count:14},
-    gateRow(), {type:'wave', count:14},
     gateRow(), {type:'wave', count:16},
+    wallRow(22),
     gateRow(), {type:'wave', count:16},
-    gateRow(), {type:'wave', count:18},
-    gateRow(), {type:'wave', count:18},
-    gateRow(), {type:'wave', count:20},
-  ]},
-  // Level 4
-  { rows:[
-    gateRow(), {type:'wave', count:16},
-    gateRow(), {type:'wave', count:18},
     gateRow(), {type:'wave', count:18},
     gateRow(), {type:'wave', count:20},
     gateRow(), {type:'wave', count:22},
-    gateRow(), {type:'wave', count:22},
-    gateRow(), {type:'wave', count:24},
-    gateRow(), {type:'wave', count:26},
-    gateRow(), {type:'wave', count:28},
+    wallRow(30),
   ]},
-  // Level 5 — Boss
+  // Level 5 — Boss (brutal)
   { rows:[
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:18},
     gateRow(), {type:'wave', count:20},
+    wallRow(28),
     gateRow(), {type:'wave', count:22},
     gateRow(), {type:'wave', count:24},
     gateRow(), {type:'wave', count:26},
     gateRow(), {type:'wave', count:28},
     gateRow(), {type:'wave', count:30},
-    gateRow(), {type:'wave', count:32},
-    gateRow(), {type:'wave', count:34},
-    gateRow(), {type:'wave', count:36},
-    gateRow(), {type:'wave', count:40},
+    wallRow(45),
   ]},
 ];
 
@@ -129,7 +147,7 @@ const ROAD_WIDTH_BOTTOM = 0.92;  // fraction of W at bottom
 const ROAD_WIDTH_TOP    = 0.40;  // fraction of W at top
 const ROAD_HORIZON      = 0.18;  // fraction of H for horizon
 const SQUAD_Y_FRAC      = 0.78;  // squad sits at this Y fraction
-const SCROLL_SPEED      = 2.8;   // world scroll px/frame
+const SCROLL_SPEED      = 2.3;   // world scroll px/frame (slowed ~18%)
 const UNIT_R            = 7;     // soldier body radius
 const HEAD_R            = 4.5;
 const ENEMY_R           = 9;
@@ -141,6 +159,7 @@ const ENEMY_ADVANCE     = 0.9;   // px/frame
 const GATE_H_WORLD      = 110;   // gate height in world units
 const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
 const MAX_UNITS         = 20;
+const ENEMY_CONVERGE    = 0.15;  // px/frame drift toward squad X
 
 // ── Bottom stack constants ──────────────────
 const STACK_ORB_R       = 16;    // radius of orbs in the bottom stack
@@ -220,6 +239,10 @@ function defaultState(levelIdx) {
     soldierColors: [],                  // color per soldier unit
     relics: {},                         // { relic_id: true }
     lastRelicGain: null,                // relic id gained at end of last level
+    activeWall: null,                   // { hp, maxHp, scrollPos, timer }
+    screenShake: 0,                     // frames remaining for screen shake
+    hurtFlash: 0,                       // frames remaining for red hurt vignette
+    floatingTexts: [],                  // [{ x, y, text, color, life, maxLife }]
   };
 }
 
@@ -364,7 +387,10 @@ function showOverlay(icon, title, msg, btnText, cb) {
   overlayTitle.textContent = title;
   overlayMsg.textContent   = msg;
   overlayBtn.textContent   = btnText;
+  overlayBtn.style.display = '';
   overlayBtn.onclick = () => { overlay.classList.add('hidden'); cb(); };
+  const rc = document.getElementById('relic-choices');
+  if (rc) rc.innerHTML = '';
   overlay.classList.remove('hidden');
 }
 
@@ -374,6 +400,7 @@ function gameOver() {
   state.soldierColors = [];
   state.stackOrbs = [];
   state.activeBuffs = [];
+  state.activeWall = null;
   showOverlay('💀','全军覆没！',`第 ${state.level+1} 关失败，单位归零。`,'再来一次', () => startLevel(state.level));
 }
 
@@ -385,16 +412,55 @@ function levelWin() {
     state.soldierColors = [];
     state.stackOrbs = [];
     state.activeBuffs = [];
+    state.activeWall = null;
     showOverlay('🏆','全关通关！',`恭喜完成全部 ${LEVELS.length} 关！剩余单位：${state.units}`,'再玩一次', () => startLevel(0));
   } else {
-    const relicId = rollRelic();
-    state.relics[relicId] = true;
-    const relic = RELIC_DEFS[relicId];
-    const relicList = RELIC_IDS.filter(id => state.relics[id]).map(id => RELIC_DEFS[id].name).join('、');
-    showOverlay('🎉',`第 ${state.level+1} 关通关！`,
-      `剩余单位：${state.units}\n获得遗物：${relic.name}\n${relic.desc}\n\n当前遗物：${relicList}`,
-      '下一关', () => startLevel(state.level+1));
+    const choices = rollRelicChoices(3);
+    showRelicChoice(choices, state.level);
   }
+}
+
+function showRelicChoice(choices, level) {
+  overlayIcon.textContent  = '🎉';
+  overlayTitle.textContent = `第 ${level+1} 关通关！`;
+  overlayMsg.textContent   = `剩余单位：${state.units}\n选择一个遗物：`;
+  overlayBtn.style.display = 'none';
+
+  // Build relic choice buttons
+  let choiceContainer = document.getElementById('relic-choices');
+  if (!choiceContainer) {
+    choiceContainer = document.createElement('div');
+    choiceContainer.id = 'relic-choices';
+    overlayBtn.parentNode.insertBefore(choiceContainer, overlayBtn);
+  }
+  choiceContainer.innerHTML = '';
+  choiceContainer.style.cssText = 'display:flex; flex-direction:column; gap:10px; margin-bottom:16px;';
+
+  for (const relicId of choices) {
+    const def = RELIC_DEFS[relicId];
+    const btn = document.createElement('button');
+    btn.className = 'relic-choice-btn';
+    btn.innerHTML = `<span style="font-size:22px;margin-right:8px;">${def.icon}</span><strong>${def.name}</strong><br><span style="font-size:12px;opacity:0.7;">${def.desc}</span>`;
+    btn.style.cssText = `
+      background: linear-gradient(135deg, #2a3a5e, #1a2a48);
+      color: #fff; border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 14px; padding: 14px 18px;
+      font-size: 15px; cursor: pointer; text-align: left;
+      transition: transform 0.12s, border-color 0.12s;
+    `;
+    btn.onmouseenter = () => { btn.style.borderColor = '#667eea'; btn.style.transform = 'scale(1.03)'; };
+    btn.onmouseleave = () => { btn.style.borderColor = 'rgba(255,255,255,0.2)'; btn.style.transform = 'scale(1)'; };
+    btn.onclick = () => {
+      state.relics[relicId] = true;
+      choiceContainer.innerHTML = '';
+      overlayBtn.style.display = '';
+      overlay.classList.add('hidden');
+      startLevel(level + 1);
+    };
+    choiceContainer.appendChild(btn);
+  }
+
+  overlay.classList.remove('hidden');
 }
 
 // ══════════════════════════════════════════════
@@ -534,6 +600,44 @@ function resolveStackMatches() {
       }
     }
 
+    // --- Relic: chain_light — 20% chance to randomly remove 3 extra same-color orbs ---
+    if (hasRelic('chain_light') && chance(0.2) && state.stackOrbs.length >= 3) {
+      const randIdx = Math.floor(Math.random() * state.stackOrbs.length);
+      const chainColor = state.stackOrbs[randIdx];
+      const chainRemove = [randIdx];
+      for (let ci = 0; ci < state.stackOrbs.length && chainRemove.length < 3; ci++) {
+        if (ci !== randIdx && isMatchable(state.stackOrbs[ci], chainColor)) chainRemove.push(ci);
+      }
+      if (chainRemove.length >= 3) {
+        chainRemove.sort((a, b) => b - a);
+        for (const ci of chainRemove) {
+          const cc = state.stackOrbs[ci];
+          if (cc === 'dual') {
+            colorCounts['red'] = (colorCounts['red'] || 0) + 1;
+            colorCounts['blue'] = (colorCounts['blue'] || 0) + 1;
+          } else {
+            colorCounts[cc] = (colorCounts[cc] || 0) + 1;
+          }
+          state.stackOrbs.splice(ci, 1);
+        }
+        spawnFloatingText(state.squadX, state.squadY - 60, '连锁闪电!', '#aaddff', 50);
+      }
+    }
+
+    // --- Relic: golden_ratio — if stack had all 3 colors removed, bonus +2 ---
+    if (hasRelic('golden_ratio') && colorCounts['red'] && colorCounts['blue'] && colorCounts['yellow']) {
+      const bonus = 2;
+      for (let b = 0; b < bonus; b++) {
+        if (state.units < MAX_UNITS) {
+          state.units++;
+          state.soldierColors.push(['red','blue','yellow'][b % 3]);
+        }
+      }
+      updateHUD();
+      buildSoldiers();
+      spawnFloatingText(state.squadX, state.squadY - 70, '黄金比例! +2兵', '#ffee44', 60);
+    }
+
     // --- Award buffs: floor(count/3) per color ---
     for (const [color, count] of Object.entries(colorCounts)) {
       const buffs = Math.floor(count / 3);
@@ -566,6 +670,9 @@ function applyColorBuff(color) {
   updateHUD();
   buildSoldiers();
   state.gateFlash = { color, timer: 24 };
+  state.screenShake = 6;
+  const label = color === 'red' ? '红' : color === 'yellow' ? '黄' : '蓝';
+  spawnFloatingText(state.squadX, state.squadY - 40, '三消! +1 ' + label + '兵', orbTextColor(color), 55);
 }
 
 function spawnTokenParticles(color) {
@@ -583,13 +690,14 @@ function spawnColorOrb(x, y) {
 
 function spawnColorOrbAt(x, y, color) {
   const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
-  const speed = 2 + Math.random() * 2;
+  const speed = 1.2 + Math.random() * 1.3;
   state.colorOrbs.push({
     x, y,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     color,
     life: COLOR_ORB_LIFE,
+    bounceCount: 0,
   });
 }
 
@@ -647,6 +755,35 @@ function enemyScreenPos(e) {
 }
 
 // ══════════════════════════════════════════════
+//  FLOATING TEXT
+// ══════════════════════════════════════════════
+function spawnFloatingText(x, y, text, color, life = 60) {
+  state.floatingTexts.push({ x, y, text, color, life, maxLife: life });
+}
+
+function orbTextColor(c) {
+  return c === 'red' ? '#ff6666' : c === 'yellow' ? '#ffdd44' : '#66aaff';
+}
+
+// ══════════════════════════════════════════════
+//  COLLECT RING effect
+// ══════════════════════════════════════════════
+function spawnCollectRing(x, y, color) {
+  const c = orbTextColor(color);
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    state.particles.push({
+      x, y,
+      vx: Math.cos(angle) * 3,
+      vy: Math.sin(angle) * 3,
+      life: 0.7,
+      color: c,
+      r: 2.5,
+    });
+  }
+}
+
+// ══════════════════════════════════════════════
 //  PARTICLES
 // ══════════════════════════════════════════════
 function spawnParticles(x, y, color, n = 7) {
@@ -686,7 +823,40 @@ function update() {
     if (state.gateFlash.timer <= 0) state.gateFlash = null;
   }
 
+  if (state.screenShake > 0) state.screenShake--;
+  if (state.hurtFlash > 0) state.hurtFlash--;
+
+  // Floating texts
+  for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+    const ft = state.floatingTexts[i];
+    ft.y -= 1.2;
+    ft.life--;
+    if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+  }
+
   updateWorld();
+}
+
+// ── Wall screen position helper ─────────────
+function wallScreenPos(wall) {
+  const distAhead = wall.scrollPos - state.scrollY;
+  const t = perspT(distAhead);
+  const horizonY = ROAD_HORIZON * H;
+  const sy = horizonY + t * (state.squadY - horizonY);
+  const scale = scaleAtY(sy);
+  const roadHalf = roadHalfAtY(sy);
+  const wallH = GATE_H_WORLD * 0.6 * scale;
+  return {
+    x: W / 2,
+    y: sy,
+    top: sy - wallH / 2,
+    bottom: sy + wallH / 2,
+    left: W / 2 - roadHalf,
+    right: W / 2 + roadHalf,
+    scale,
+    roadHalf,
+    wallH,
+  };
 }
 
 // ── Single unified world update ─────────────
@@ -694,8 +864,22 @@ function updateWorld() {
   // Clamp squadY if stack pushed the boundary up
   state.squadY = Math.min(state.squadY, getEffectiveSquadY());
 
-  // Always scroll
-  state.scrollY += SCROLL_SPEED;
+  // Pause scrolling while a wall is active; otherwise scroll
+  if (!state.activeWall) {
+    state.scrollY += SCROLL_SPEED;
+  } else {
+    state.activeWall.timer--;
+    if (state.activeWall.timer <= 0) {
+      state.phase = 'dead';
+      state.activeWall = null;
+      state.relics = {};
+      state.soldierColors = [];
+      state.stackOrbs = [];
+      state.activeBuffs = [];
+      showOverlay('🧱','墙壁未击破！',`第 ${state.level+1} 关失败，火力不足！`,'再来一次', () => startLevel(state.level));
+      return;
+    }
+  }
 
   // ── Spawn waves when their scrollPos is reached ──
   for (const row of state.rows) {
@@ -709,22 +893,34 @@ function updateWorld() {
         applyGate(side);
       }
     } else if (row.type === 'wave') {
-      // Pre-spawn enemies when they are one ROW_SPACING ahead (near horizon)
-      // so they scroll in naturally from the distance
       if (distAhead <= ROW_SPACING && !row.spawned) {
         row.spawned = true;
         spawnEnemiesAtScroll(row.count, row.scrollPos);
       }
-      // Mark passed once wave has reached the squad
       if (distAhead <= 0 && !row.passed) {
         row.passed = true;
+      }
+    } else if (row.type === 'wall') {
+      // Activate wall when it reaches the squad zone
+      if (distAhead <= ROW_SPACING * 0.35 && !row.passed && !state.activeWall) {
+        const wallTime = hasRelic('frost_armor') ? Math.round(WALL_TIMEOUT_FRAMES * 1.5) : WALL_TIMEOUT_FRAMES;
+        state.activeWall = {
+          hp: row.hp,
+          maxHp: row.hp,
+          scrollPos: row.scrollPos,
+          timer: wallTime,
+          maxTimer: wallTime,
+          row,
+        };
       }
     }
   }
 
   // ── Shooting ──────────────────────────────
   state.shootTimer++;
-  if (state.shootTimer >= SHOOT_INTERVAL && state.enemies.length > 0) {
+  const effectiveShootInterval = hasRelic('rapid_fire') ? Math.round(SHOOT_INTERVAL * 0.75) : SHOOT_INTERVAL;
+  const hasTargets = state.enemies.length > 0 || state.activeWall;
+  if (state.shootTimer >= effectiveShootInterval && hasTargets) {
     state.shootTimer = 0;
     fireFromSquad();
   }
@@ -735,6 +931,30 @@ function updateWorld() {
     b.x += b.vx; b.y += b.vy;
     if (b.y < H * ROAD_HORIZON - 20 || b.x < 0 || b.x > W) {
       state.bullets.splice(i, 1);
+    }
+  }
+
+  // ── Bullet vs Wall ────────────────────────
+  if (state.activeWall) {
+    const wall = state.activeWall;
+    const wScreen = wallScreenPos(wall);
+    for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
+      const b = state.bullets[bi];
+      if (b.y >= wScreen.top - 10 && b.y <= wScreen.bottom &&
+          b.x > wScreen.left && b.x < wScreen.right) {
+        wall.hp--;
+        spawnParticles(b.x, b.y, '#ffaa33', 5);
+        spawnParticles(b.x, b.y, '#ffffff', 3);
+        state.bullets.splice(bi, 1);
+        if (wall.hp <= 0) {
+          // Wall broken
+          spawnParticles(W / 2, wScreen.top, '#ff6644', 20);
+          spawnParticles(W / 2, wScreen.top, '#ffcc00', 15);
+          wall.row.passed = true;
+          state.activeWall = null;
+          break;
+        }
+      }
     }
   }
 
@@ -751,8 +971,10 @@ function updateWorld() {
         spawnParticles(pos.x, pos.y, '#ff6b35', 8);
         spawnParticles(pos.x, pos.y, '#ffcc44', 4);
         spawnParticles(pos.x, pos.y, '#ffffff', 2);
-        if (state.comboMode && Math.random() < 0.2) {
+        const dropRate = hasRelic('lucky_clover') ? 0.35 : 0.2;
+        if (state.comboMode && Math.random() < dropRate) {
           spawnColorOrb(pos.x, pos.y);
+          spawnFloatingText(pos.x, pos.y - 25, '+ 球!', '#ffee66', 40);
         }
         state.enemies.splice(ei, 1);
         hit = true;
@@ -760,6 +982,13 @@ function updateWorld() {
       }
     }
     if (hit) state.bullets.splice(bi, 1);
+  }
+
+  // ── Enemy convergence toward squad X ────────
+  const normSqX = (state.squadX - W / 2) / (W * ROAD_WIDTH_BOTTOM / 2);
+  for (const e of state.enemies) {
+    const diff = normSqX * (W * ROAD_WIDTH_BOTTOM / 2) - e.offsetX;
+    if (Math.abs(diff) > 2) e.offsetX += Math.sign(diff) * ENEMY_CONVERGE;
   }
 
   // ── Enemy vs Squad collision ───────────────
@@ -774,14 +1003,39 @@ function updateWorld() {
     const er = ENEMY_R * pos.scale;
     const dx = pos.x - squadSX, dy = pos.y - squadSY;
     if (dx*dx + dy*dy < (clusterR + er) ** 2) {
-      spawnParticles(pos.x, pos.y, '#ff4757', 10);
-      spawnParticles(pos.x, pos.y, '#ff8866', 4);
+      spawnParticles(pos.x, pos.y, '#ff4757', 14);
+      spawnParticles(pos.x, pos.y, '#ff8866', 6);
+      spawnParticles(pos.x, pos.y, '#ffffff', 3);
       state.enemies.splice(ei, 1);
-      state.units = Math.max(0, state.units - 1);
-      if (state.soldierColors.length > state.units) state.soldierColors.pop();
+
+      // iron_wall relic: 15% chance to block damage
+      if (hasRelic('iron_wall') && chance(0.15)) {
+        spawnFloatingText(pos.x, pos.y - 20, '格挡!', '#66ccff');
+        state.screenShake = 4;
+      } else {
+        state.units = Math.max(0, state.units - 1);
+        if (state.soldierColors.length > state.units) state.soldierColors.pop();
+        state.screenShake = 12;
+        state.hurtFlash = 18;
+        spawnFloatingText(pos.x, pos.y - 20, '-1', '#ff4444');
+      }
       updateHUD();
       buildSoldiers();
-      if (state.units <= 0) { gameOver(); return; }
+      if (state.units <= 0) {
+        // phoenix relic: revive once with 3 units
+        if (hasRelic('phoenix')) {
+          state.relics.phoenix = false;
+          state.units = 3;
+          state.soldierColors = ['blue','blue','blue'];
+          spawnFloatingText(state.squadX, state.squadY - 50, '凤凰复活!', '#ffaa00', 80);
+          state.screenShake = 20;
+          updateHUD();
+          buildSoldiers();
+        } else {
+          gameOver();
+          return;
+        }
+      }
     }
   }
 
@@ -796,37 +1050,43 @@ function updateWorld() {
     const squadSY2  = state.squadY;
     const squadSX2  = state.squadX;
     const scale2    = scaleAtY(squadSY2);
-    const collectR  = (getClusterRadius(state.units) + 1) * scale2 * (UNIT_R * 2 + 3) + COLOR_ORB_R + 10;
+    const magnetMul = hasRelic('magnet') ? 1.5 : 1.0;
+    const collectR  = ((getClusterRadius(state.units) + 1) * scale2 * (UNIT_R * 2 + 3) + COLOR_ORB_R + 10) * magnetMul;
 
     for (let oi = state.colorOrbs.length - 1; oi >= 0; oi--) {
       const orb = state.colorOrbs[oi];
       orb.x  += orb.vx;
       orb.y  += orb.vy;
-      orb.vy += 0.04;  // gentle gravity
+      orb.vy += 0.025;  // slower gravity
       orb.life--;
 
       // Wall bounce (left/right road edges at orb height)
       const roadHalfOrb = roadHalfAtY(Math.min(orb.y, H));
       const leftEdge    = W / 2 - roadHalfOrb;
       const rightEdge   = W / 2 + roadHalfOrb;
-      if (orb.x - COLOR_ORB_R < leftEdge)  { orb.x = leftEdge  + COLOR_ORB_R; orb.vx = Math.abs(orb.vx); }
-      if (orb.x + COLOR_ORB_R > rightEdge) { orb.x = rightEdge - COLOR_ORB_R; orb.vx = -Math.abs(orb.vx); }
+      if (orb.x - COLOR_ORB_R < leftEdge)  { orb.x = leftEdge  + COLOR_ORB_R; orb.vx = Math.abs(orb.vx) * 0.8; }
+      if (orb.x + COLOR_ORB_R > rightEdge) { orb.x = rightEdge - COLOR_ORB_R; orb.vx = -Math.abs(orb.vx) * 0.8; }
 
-      // Bottom bounce
+      // Bottom bounce — track bounces for cleanup
       if (orb.y + COLOR_ORB_R > H) {
         orb.y = H - COLOR_ORB_R;
-        orb.vy = -Math.abs(orb.vy) * 0.7;
+        orb.vy = -Math.abs(orb.vy) * 0.5;
+        orb.bounceCount = (orb.bounceCount || 0) + 1;
       }
 
-      // Remove only when life expires
-      if (orb.life <= 0) {
+      // Cleanup: remove orbs that lost too much energy to bounce back to player
+      const tooSlow = Math.abs(orb.vy) < 0.3 && orb.y > squadSY2 + 80;
+      if (orb.life <= 0 || (orb.bounceCount >= 3 && tooSlow)) {
         state.colorOrbs.splice(oi, 1);
         continue;
       }
 
-      // Squad collision
+      // Squad collision — with feedback
       const dx = orb.x - squadSX2, dy = orb.y - squadSY2;
       if (dx * dx + dy * dy < collectR * collectR) {
+        spawnCollectRing(orb.x, orb.y, orb.color);
+        const colorLabel = orb.color === 'red' ? '红' : orb.color === 'yellow' ? '黄' : '蓝';
+        spawnFloatingText(orb.x, orb.y - 15, colorLabel + '球', orbTextColor(orb.color), 45);
         awardColorToken(orb.color);
         state.colorOrbs.splice(oi, 1);
       }
@@ -848,28 +1108,45 @@ function getClusterRadius(n) {
 
 // ── Fire ────────────────────────────────────
 function fireFromSquad() {
-  if (state.enemies.length === 0) return;
+  const hasEnemies = state.enemies.length > 0;
+  const hasWall = !!state.activeWall;
+  if (!hasEnemies && !hasWall) return;
+
   const squadSY = state.squadY;
   const squadSX = state.squadX;
   const scale = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
 
-  // Pre-compute enemy screen positions
-  const enemyPositions = state.enemies.map(e => enemyScreenPos(e));
+  const enemyPositions = hasEnemies ? state.enemies.map(e => enemyScreenPos(e)) : [];
+  let wallTarget = null;
+  if (hasWall) {
+    const ws = wallScreenPos(state.activeWall);
+    wallTarget = { x: ws.x + (Math.random() - 0.5) * ws.roadHalf * 0.6, y: ws.top };
+  }
 
   for (const sol of state.soldiers) {
     const sx = squadSX + sol.ox * spacing;
     const sy = squadSY + sol.oy * spacing;
 
-    let nearest = null, nearestD = Infinity;
+    let target = null;
+    let nearestD = Infinity;
+
     for (let i = 0; i < enemyPositions.length; i++) {
       const ep = enemyPositions[i];
       const dx = ep.x - sx, dy = ep.y - sy;
       const d = dx*dx + dy*dy;
-      if (d < nearestD) { nearestD = d; nearest = ep; }
+      if (d < nearestD) { nearestD = d; target = ep; }
     }
-    if (!nearest) continue;
-    const dx = nearest.x - sx, dy = nearest.y - sy;
+
+    // If wall is active and closer (or no enemies), target the wall
+    if (wallTarget) {
+      const dx = wallTarget.x - sx, dy = wallTarget.y - sy;
+      const wd = dx*dx + dy*dy;
+      if (!target || wd < nearestD) target = wallTarget;
+    }
+
+    if (!target) continue;
+    const dx = target.x - sx, dy = target.y - sy;
     const len = Math.sqrt(dx*dx + dy*dy);
     state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: dx/len * BULLET_SPEED, vy: dy/len * BULLET_SPEED });
   }
@@ -879,13 +1156,25 @@ function fireFromSquad() {
 //  DRAW
 // ══════════════════════════════════════════════
 function draw() {
-  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+
+  // Screen shake offset
+  if (state.screenShake > 0) {
+    const mag = state.screenShake * 0.8;
+    ctx.translate(
+      (Math.random() - 0.5) * mag * 2,
+      (Math.random() - 0.5) * mag * 2
+    );
+  }
+
+  ctx.clearRect(-10, -10, W + 20, H + 20);
 
   drawBackground();
   drawRoad();
   drawBridgeStructure();
 
   drawGates();
+  drawWalls();
   drawEnemies();
   drawBullets();
   drawColorOrbs();
@@ -894,9 +1183,22 @@ function draw() {
   drawSquad();
   drawBottomStackZone();
   drawGateFlash();
+  drawFloatingTexts();
+
+  // Hurt vignette
+  if (state.hurtFlash > 0) {
+    const t = state.hurtFlash / 18;
+    ctx.fillStyle = `rgba(255,0,0,${t * 0.25})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Health bar (units-based)
+  drawHealthBar();
 
   if (state.comboMode) drawColorComboHUD();
   drawRelicHUD();
+
+  ctx.restore();
 }
 
 // ── Background (winter / Last War style) ────
@@ -1225,6 +1527,115 @@ function drawGates() {
   }
 }
 
+function drawWalls() {
+  // Draw upcoming walls (not yet active)
+  for (const row of state.rows) {
+    if (row.type !== 'wall' || row.passed) continue;
+    if (state.activeWall && state.activeWall.row === row) continue;
+    const distAhead = row.scrollPos - state.scrollY;
+    if (distAhead < 0 || distAhead > ROW_SPACING * 1.5) continue;
+    const t = perspT(distAhead);
+    const sy = ROAD_HORIZON * H + t * (state.squadY - ROAD_HORIZON * H);
+    const scale = scaleAtY(sy);
+    const roadHalf = roadHalfAtY(sy);
+    const wallH = GATE_H_WORLD * 0.6 * scale;
+    drawWallBody(W / 2, sy, roadHalf, wallH, scale, 1, 1);
+  }
+
+  // Draw active wall
+  if (state.activeWall) {
+    const ws = wallScreenPos(state.activeWall);
+    const hpFrac = state.activeWall.hp / state.activeWall.maxHp;
+    const timeFrac = state.activeWall.timer / (state.activeWall.maxTimer || WALL_TIMEOUT_FRAMES);
+    drawWallBody(ws.x, ws.y, ws.roadHalf, ws.wallH, ws.scale, hpFrac, timeFrac);
+  }
+}
+
+function drawWallBody(cx, cy, roadHalf, wallH, scale, hpFrac, timeFrac) {
+  const left = cx - roadHalf;
+  const right = cx + roadHalf;
+  const top = cy - wallH / 2;
+  const width = right - left;
+
+  // Crack overlay: reduce alpha as HP drops
+  const crackAlpha = 1 - hpFrac;
+
+  // Main wall bricks
+  ctx.save();
+  const grad = ctx.createLinearGradient(left, top, left, top + wallH);
+  grad.addColorStop(0, '#8B7355');
+  grad.addColorStop(0.5, '#A0926B');
+  grad.addColorStop(1, '#6B5B45');
+  ctx.fillStyle = grad;
+  ctx.fillRect(left, top, width, wallH);
+
+  // Brick pattern
+  ctx.strokeStyle = `rgba(60,45,30,${0.4 + crackAlpha * 0.4})`;
+  ctx.lineWidth = Math.max(1, 1.5 * scale);
+  const brickH = Math.max(6, 12 * scale);
+  const brickW = Math.max(12, 28 * scale);
+  let rowIdx = 0;
+  for (let by = top; by < top + wallH; by += brickH) {
+    const offset = (rowIdx % 2) * brickW * 0.5;
+    for (let bx = left + offset; bx < right; bx += brickW) {
+      ctx.strokeRect(bx, by, Math.min(brickW, right - bx), Math.min(brickH, top + wallH - by));
+    }
+    rowIdx++;
+  }
+
+  // Cracks as HP decreases
+  if (crackAlpha > 0.1) {
+    ctx.strokeStyle = `rgba(30,20,10,${crackAlpha * 0.8})`;
+    ctx.lineWidth = Math.max(1, 2 * scale * crackAlpha);
+    const cracks = Math.floor(crackAlpha * 6) + 1;
+    for (let i = 0; i < cracks; i++) {
+      const sx = left + width * (0.15 + 0.7 * ((i * 0.37 + 0.13) % 1));
+      const syt = top + wallH * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(sx, syt);
+      ctx.lineTo(sx + width * 0.05 * (i % 2 ? 1 : -1), syt + wallH * 0.3);
+      ctx.lineTo(sx - width * 0.03, syt + wallH * 0.6);
+      ctx.stroke();
+    }
+  }
+
+  // Top stone cap
+  ctx.fillStyle = '#5A4A3A';
+  ctx.fillRect(left - 3 * scale, top - 4 * scale, width + 6 * scale, 6 * scale);
+
+  ctx.restore();
+
+  // HP bar (above wall)
+  const barW = width * 0.7;
+  const barH = Math.max(5, 8 * scale);
+  const barX = cx - barW / 2;
+  const barY = top - 14 * scale;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+  ctx.fillStyle = hpFrac > 0.5 ? '#44cc44' : hpFrac > 0.25 ? '#ccaa22' : '#cc3333';
+  ctx.fillRect(barX, barY, barW * hpFrac, barH);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+
+  // Timer bar (below HP bar)
+  if (timeFrac < 1) {
+    const tBarY = barY + barH + 3;
+    const tBarH = Math.max(3, 5 * scale);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(barX - 1, tBarY - 1, barW + 2, tBarH + 2);
+    ctx.fillStyle = timeFrac > 0.3 ? '#4488ff' : '#ff4444';
+    ctx.fillRect(barX, tBarY, barW * timeFrac, tBarH);
+  }
+
+  // Wall text
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${Math.max(10, 16 * scale)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('💥 BREAK!', cx, cy);
+}
+
 function drawGatePanel(side, x1, x2, y1, y2, scale) {
   const gc = side.color;
   const w = x2 - x1;
@@ -1463,7 +1874,7 @@ function drawSoldierFigure(x, y, scale, color) {
   ctx.fill();
 
   // Muzzle flash (pulsing)
-  if (state.shootTimer < 6 && state.enemies.length > 0) {
+  if (state.shootTimer < 6 && (state.enemies.length > 0 || state.activeWall)) {
     const flashAlpha = 1 - state.shootTimer / 6;
     ctx.fillStyle = `rgba(255,230,100,${flashAlpha * 0.9})`;
     ctx.shadowColor = '#ffe066';
@@ -1486,6 +1897,55 @@ function drawParticles() {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
+
+// ── Health bar ───────────────────────────────
+function drawHealthBar() {
+  const barW = 140;
+  const barH = 10;
+  const barX = W / 2 - barW / 2;
+  const barY = 8;
+  const frac = Math.max(0, state.units / MAX_UNITS);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  roundRect(barX - 2, barY - 2, barW + 4, barH + 4, 6);
+  ctx.fill();
+
+  const barColor = frac > 0.5 ? '#44dd55' : frac > 0.25 ? '#ddaa22' : '#dd3333';
+  ctx.fillStyle = barColor;
+  roundRect(barX, barY, barW * frac, barH, 5);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  roundRect(barX, barY, barW, barH, 5);
+  ctx.stroke();
+
+  // Low-health pulsing warning
+  if (frac <= 0.25 && frac > 0) {
+    const pulse = 0.12 + Math.sin(frameCount * 0.15) * 0.06;
+    ctx.fillStyle = `rgba(255,0,0,${pulse})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ── Floating texts ───────────────────────────
+function drawFloatingTexts() {
+  for (const ft of state.floatingTexts) {
+    const alpha = Math.min(1, ft.life / (ft.maxLife * 0.3));
+    const scale = 0.8 + 0.4 * (1 - ft.life / ft.maxLife);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = `bold ${Math.round(16 * scale)}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = ft.color;
+    ctx.shadowColor = ft.color;
+    ctx.shadowBlur = 8;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
 }
 
 // ── Gate flash overlay ───────────────────────
@@ -1744,7 +2204,7 @@ function drawRelicHUD() {
   const px = 8, py = 44;
   const lineH = 18;
   const panelH = 10 + active.length * lineH + 6;
-  const panelW = 120;
+  const panelW = 130;
 
   ctx.globalAlpha = 0.78;
   ctx.fillStyle = 'rgba(10, 14, 30, 0.85)';
@@ -1763,14 +2223,8 @@ function drawRelicHUD() {
 
   for (let i = 0; i < active.length; i++) {
     const def = RELIC_DEFS[active[i]];
-    const iconColors = {
-      ocean_tear: '#4fc3f7',
-      rb_blind:   '#cc66ff',
-      dithering:  '#ff9966',
-      desert:     '#ffcc00',
-    };
-    ctx.fillStyle = iconColors[active[i]] || '#ffffff';
-    ctx.fillText('■ ' + def.name, px + 10, py + 8 + i * lineH);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(def.icon + ' ' + def.name, px + 8, py + 8 + i * lineH);
   }
 
   ctx.textBaseline = 'alphabetic';
