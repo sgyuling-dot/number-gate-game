@@ -204,8 +204,8 @@ function getStackHeightPx() {
 }
 
 function getEffectiveSquadY() {
-  const penalty = Math.min(getStackHeightPx(), H * STACK_MAX_HEIGHT_FRAC);
-  return Math.max(H * 0.22, H * SQUAD_Y_FRAC - penalty);
+  const stackH = Math.min(getStackHeightPx(), H * STACK_MAX_HEIGHT_FRAC);
+  return Math.max(H * 0.22, H - stackH);
 }
 
 // ══════════════════════════════════════════════
