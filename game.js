@@ -1065,22 +1065,33 @@ function updateWorld() {
       orb.vy += 0.025;  // slower gravity
       orb.life--;
 
+      // Playable area bounds
+      const topBound    = H * 0.30;
+      const bottomBound = getEffectiveSquadY();
+
       // Wall bounce (left/right road edges at orb height)
-      const roadHalfOrb = roadHalfAtY(Math.min(orb.y, H));
+      const clampedY    = Math.max(topBound, Math.min(orb.y, bottomBound));
+      const roadHalfOrb = roadHalfAtY(clampedY);
       const leftEdge    = W / 2 - roadHalfOrb;
       const rightEdge   = W / 2 + roadHalfOrb;
       if (orb.x - COLOR_ORB_R < leftEdge)  { orb.x = leftEdge  + COLOR_ORB_R; orb.vx = Math.abs(orb.vx) * 0.8; }
       if (orb.x + COLOR_ORB_R > rightEdge) { orb.x = rightEdge - COLOR_ORB_R; orb.vx = -Math.abs(orb.vx) * 0.8; }
 
+      // Top bounce
+      if (orb.y - COLOR_ORB_R < topBound) {
+        orb.y = topBound + COLOR_ORB_R;
+        orb.vy = Math.abs(orb.vy) * 0.5;
+      }
+
       // Bottom bounce — track bounces for cleanup
-      if (orb.y + COLOR_ORB_R > H) {
-        orb.y = H - COLOR_ORB_R;
+      if (orb.y + COLOR_ORB_R > bottomBound) {
+        orb.y = bottomBound - COLOR_ORB_R;
         orb.vy = -Math.abs(orb.vy) * 0.5;
         orb.bounceCount = (orb.bounceCount || 0) + 1;
       }
 
       // Cleanup: remove orbs that lost too much energy to bounce back to player
-      const tooSlow = Math.abs(orb.vy) < 0.3 && orb.y > squadSY2 + 80;
+      const tooSlow = Math.abs(orb.vy) < 0.3 && orb.y > bottomBound - 30;
       if (orb.life <= 0 || (orb.bounceCount >= 3 && tooSlow)) {
         state.colorOrbs.splice(oi, 1);
         continue;
@@ -1200,7 +1211,6 @@ function draw() {
   // Health bar (units-based)
   drawHealthBar();
 
-  if (state.comboMode) drawColorComboHUD();
   drawRelicHUD();
 
   ctx.restore();
