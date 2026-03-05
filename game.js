@@ -898,7 +898,9 @@ function updateWorld() {
     const distAhead = row.scrollPos - state.scrollY;
 
     if (row.type === 'gate') {
-      if (distAhead <= 0 && distAhead > -GATE_PASS_ZONE) {
+      const gateT = perspT(distAhead);
+      const gateSY = ROAD_HORIZON * H + gateT * (roadBottomY() - ROAD_HORIZON * H);
+      if (gateSY >= state.squadY && !row.passed) {
         row.passed = true;
         const side = state.squadX < W / 2 ? row.left : row.right;
         applyGate(side);
