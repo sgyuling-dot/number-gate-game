@@ -203,9 +203,15 @@ function getStackHeightPx() {
   return rows * (STACK_ORB_R * 2 + STACK_ORB_GAP);
 }
 
+function getSquadClusterOffset() {
+  const scale = scaleAtY(H * SQUAD_Y_FRAC);
+  const spacing = (UNIT_R * 2 + 3) * scale;
+  return (getClusterRadius(state.units) + 0.8) * spacing;
+}
+
 function getEffectiveSquadY() {
   const stackH = Math.min(getStackHeightPx(), H * STACK_MAX_HEIGHT_FRAC);
-  return Math.max(H * 0.22, H - stackH);
+  return Math.max(H * 0.22, H - stackH - getSquadClusterOffset());
 }
 
 // ══════════════════════════════════════════════
@@ -907,7 +913,7 @@ function updateWorld() {
       }
     } else if (row.type === 'wall') {
       // Activate wall when it reaches the squad zone
-      if (distAhead <= ROW_SPACING * 0.35 && !row.passed && !state.activeWall) {
+      if (distAhead <= ROW_SPACING * 0.8 && !row.passed && !state.activeWall) {
         const wallTime = hasRelic('frost_armor') ? Math.round(WALL_TIMEOUT_FRAMES * 1.5) : WALL_TIMEOUT_FRAMES;
         state.activeWall = {
           hp: row.hp,
