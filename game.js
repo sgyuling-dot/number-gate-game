@@ -738,14 +738,16 @@ function perspT(distAhead) {
   return Math.max(0, Math.min(1.2, 1 - d));
 }
 
+// Fixed road-bottom Y used as perspective anchor (independent of player movement)
+function roadBottomY() { return H * SQUAD_Y_FRAC; }
+
 // Convert an enemy's world position to current screen position
 function enemyScreenPos(e) {
   const distAhead = e.waveScrollPos - state.scrollY;
   const t = perspT(distAhead);
 
   const horizonY = ROAD_HORIZON * H;
-  const sqY      = state.squadY;
-  const baseY    = horizonY + t * (sqY - horizonY);
+  const baseY    = horizonY + t * (roadBottomY() - horizonY);
 
   const scale    = scaleAtY(baseY);
   const roadHalf = roadHalfAtY(baseY);
@@ -845,7 +847,7 @@ function wallScreenPos(wall) {
   const distAhead = wall.scrollPos - state.scrollY;
   const t = perspT(distAhead);
   const horizonY = ROAD_HORIZON * H;
-  const sy = horizonY + t * (state.squadY - horizonY);
+  const sy = horizonY + t * (roadBottomY() - horizonY);
   const scale = scaleAtY(sy);
   const roadHalf = roadHalfAtY(sy);
   const wallH = GATE_H_WORLD * 0.6 * scale;
@@ -1502,7 +1504,7 @@ function drawGates() {
 
     // Use perspective mapping — same as enemyScreenPos
     const t  = perspT(distAhead);
-    const sy = ROAD_HORIZON * H + t * (state.squadY - ROAD_HORIZON * H);
+    const sy = ROAD_HORIZON * H + t * (roadBottomY() - ROAD_HORIZON * H);
     const scale = scaleAtY(sy);
     const roadHalf = roadHalfAtY(sy);
 
@@ -1538,7 +1540,7 @@ function drawWalls() {
     const distAhead = row.scrollPos - state.scrollY;
     if (distAhead < 0 || distAhead > ROW_SPACING * 1.5) continue;
     const t = perspT(distAhead);
-    const sy = ROAD_HORIZON * H + t * (state.squadY - ROAD_HORIZON * H);
+    const sy = ROAD_HORIZON * H + t * (roadBottomY() - ROAD_HORIZON * H);
     const scale = scaleAtY(sy);
     const roadHalf = roadHalfAtY(sy);
     const wallH = GATE_H_WORLD * 0.6 * scale;
