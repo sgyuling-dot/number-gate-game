@@ -506,45 +506,48 @@ function resolveStackMatches() {
     const rows = Math.ceil(len / cols);
     const toRemove = new Set();
 
-    // --- Horizontal scan (each row) ---
-    for (let r = 0; r < rows; r++) {
-      const rowStart = r * cols;
-      const rowEnd = Math.min(rowStart + cols, len);
-      let s = rowStart;
-      while (s < rowEnd) {
-        let runColor = orbs[s];
-        let e = s + 1;
-        while (e < rowEnd && isMatchable(orbs[e], runColor)) {
-          if (runColor === 'dual' && orbs[e] !== 'dual') runColor = orbs[e];
-          e++;
+    // Scan a sequence of indices for runs of `targetColor`, treating dual as matching
+    function scanRuns(indices, targetColor) {
+      let s = 0;
+      while (s < indices.length) {
+        const c = orbs[indices[s]];
+        if (c === targetColor || (c === 'dual' && (targetColor === 'red' || targetColor === 'blue'))) {
+          let e = s + 1;
+          while (e < indices.length) {
+            const ce = orbs[indices[e]];
+            if (ce === targetColor || (ce === 'dual' && (targetColor === 'red' || targetColor === 'blue'))) {
+              e++;
+            } else break;
+          }
+          if (e - s >= 3) {
+            for (let k = s; k < e; k++) toRemove.add(indices[k]);
+          }
+          s = e;
+        } else {
+          s++;
         }
-        if (e - s >= 3) {
-          for (let k = s; k < e; k++) toRemove.add(k);
-        }
-        s = e;
       }
     }
 
-    // --- Vertical scan (each column) ---
+    const scanColors = ['red', 'blue', 'yellow'];
+
+    // --- Horizontal scan (each row, per color) ---
+    for (let r = 0; r < rows; r++) {
+      const rowStart = r * cols;
+      const rowEnd = Math.min(rowStart + cols, len);
+      const indices = [];
+      for (let i = rowStart; i < rowEnd; i++) indices.push(i);
+      for (const sc of scanColors) scanRuns(indices, sc);
+    }
+
+    // --- Vertical scan (each column, per color) ---
     for (let c = 0; c < cols; c++) {
       const colIdx = [];
       for (let r = 0; r < rows; r++) {
         const idx = r * cols + c;
         if (idx < len) colIdx.push(idx);
       }
-      let s = 0;
-      while (s < colIdx.length) {
-        let runColor = orbs[colIdx[s]];
-        let e = s + 1;
-        while (e < colIdx.length && isMatchable(orbs[colIdx[e]], runColor)) {
-          if (runColor === 'dual' && orbs[colIdx[e]] !== 'dual') runColor = orbs[colIdx[e]];
-          e++;
-        }
-        if (e - s >= 3) {
-          for (let k = s; k < e; k++) toRemove.add(colIdx[k]);
-        }
-        s = e;
-      }
+      for (const sc of scanColors) scanRuns(colIdx, sc);
     }
 
     if (toRemove.size === 0) break;
