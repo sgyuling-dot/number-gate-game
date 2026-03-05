@@ -85,58 +85,58 @@ const WALL_TIMEOUT_FRAMES = 600; // 10 seconds @60fps to break the wall
 const LEVELS = [
   // Level 1 — Tutorial (gentle)
   { rows:[
-    gateRow(), {type:'wave', count:3},
-    gateRow(), {type:'wave', count:4},
-    wallRow(5),
-    gateRow(), {type:'wave', count:5},
-    gateRow(), {type:'wave', count:4},
-    wallRow(8),
+    gateRow(), {type:'wave', count:8},
+    gateRow(), {type:'wave', count:10},
+    wallRow(6),
+    gateRow(), {type:'wave', count:12},
+    gateRow(), {type:'wave', count:10},
+    wallRow(10),
   ]},
   // Level 2 — Easy
   { rows:[
-    gateRow(), {type:'wave', count:5},
-    gateRow(), {type:'wave', count:7},
-    gateRow(), {type:'wave', count:8},
-    wallRow(10),
-    gateRow(), {type:'wave', count:8},
-    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:12},
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:18},
     wallRow(14),
+    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:22},
+    wallRow(18),
   ]},
   // Level 3 — Medium
   { rows:[
-    gateRow(), {type:'wave', count:8},
-    gateRow(), {type:'wave', count:10},
-    gateRow(), {type:'wave', count:12},
-    wallRow(16),
-    gateRow(), {type:'wave', count:12},
-    gateRow(), {type:'wave', count:14},
-    gateRow(), {type:'wave', count:14},
-    wallRow(22),
+    gateRow(), {type:'wave', count:20},
+    gateRow(), {type:'wave', count:24},
+    gateRow(), {type:'wave', count:28},
+    wallRow(20),
+    gateRow(), {type:'wave', count:28},
+    gateRow(), {type:'wave', count:32},
+    gateRow(), {type:'wave', count:32},
+    wallRow(26),
   ]},
   // Level 4 — Hard
   { rows:[
-    gateRow(), {type:'wave', count:12},
-    gateRow(), {type:'wave', count:14},
-    gateRow(), {type:'wave', count:16},
-    wallRow(22),
-    gateRow(), {type:'wave', count:16},
-    gateRow(), {type:'wave', count:18},
-    gateRow(), {type:'wave', count:20},
-    gateRow(), {type:'wave', count:22},
-    wallRow(30),
+    gateRow(), {type:'wave', count:28},
+    gateRow(), {type:'wave', count:32},
+    gateRow(), {type:'wave', count:36},
+    wallRow(26),
+    gateRow(), {type:'wave', count:36},
+    gateRow(), {type:'wave', count:40},
+    gateRow(), {type:'wave', count:44},
+    gateRow(), {type:'wave', count:48},
+    wallRow(35),
   ]},
   // Level 5 — Boss (brutal)
   { rows:[
-    gateRow(), {type:'wave', count:16},
-    gateRow(), {type:'wave', count:18},
-    gateRow(), {type:'wave', count:20},
-    wallRow(28),
-    gateRow(), {type:'wave', count:22},
-    gateRow(), {type:'wave', count:24},
-    gateRow(), {type:'wave', count:26},
-    gateRow(), {type:'wave', count:28},
-    gateRow(), {type:'wave', count:30},
-    wallRow(45),
+    gateRow(), {type:'wave', count:36},
+    gateRow(), {type:'wave', count:40},
+    gateRow(), {type:'wave', count:44},
+    wallRow(32),
+    gateRow(), {type:'wave', count:48},
+    gateRow(), {type:'wave', count:52},
+    gateRow(), {type:'wave', count:56},
+    gateRow(), {type:'wave', count:60},
+    gateRow(), {type:'wave', count:64},
+    wallRow(50),
   ]},
 ];
 
@@ -1921,8 +1921,8 @@ function drawHealthBar() {
   roundRect(barX, barY, barW, barH, 5);
   ctx.stroke();
 
-  // Low-health pulsing warning
-  if (frac <= 0.25 && frac > 0) {
+  // Low-health pulsing warning (only when below 3 units)
+  if (state.units <= 2 && state.units > 0) {
     const pulse = 0.12 + Math.sin(frameCount * 0.15) * 0.06;
     ctx.fillStyle = `rgba(255,0,0,${pulse})`;
     ctx.fillRect(0, 0, W, H);
