@@ -528,9 +528,18 @@ function applyGate(side) {
   const color = side.color;
   metrics.gateChoices++;
   state.gateFlash = { color, timer: 18 };
-  spawnColorOrbAt(state.squadX, state.squadY - 20, color);
+  const baseCount = 4;
+  for (let i = 0; i < baseCount; i++) {
+    const ox = (Math.random() - 0.5) * 50;
+    const oy = -15 - Math.random() * 25;
+    spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color);
+  }
   if (hasRelic('greedy_hand')) {
-    spawnColorOrbAt(state.squadX + (Math.random() - 0.5) * 30, state.squadY - 35, color);
+    for (let i = 0; i < 2; i++) {
+      const ox = (Math.random() - 0.5) * 50;
+      const oy = -20 - Math.random() * 30;
+      spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color);
+    }
     spawnFloatingText(state.squadX, state.squadY - 55, '贪婪!', '#ffcc44', 30);
   }
   metrics.gateChosenForColor++;
@@ -1088,7 +1097,7 @@ function updateWorld() {
         e.hp = (e.hp || 1) - bulletDmg;
         e.flashTimer = 6;
         spawnParticles(pos.x, pos.y, '#ff6b35', 4);
-        const dropRate = hasRelic('speed_shot') ? 0.35 : 0.2;
+        const dropRate = hasRelic('speed_shot') ? 0.18 : 0.10;
 
         if (e.hp <= 0) {
           spawnParticles(pos.x, pos.y, '#ffcc44', 4);
@@ -1338,7 +1347,7 @@ function fireLaser(x, y, dirX, dirY) {
 
   const LASER_HALF_W = hasRelic('overcharge') ? 27 : 18;
   const laserDmg = hasRelic('overcharge') ? 4 : 2;
-  const dropRate = hasRelic('speed_shot') ? 0.35 : 0.2;
+  const dropRate = hasRelic('speed_shot') ? 0.18 : 0.10;
   let refractTarget = null;
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
     const e = state.enemies[ei];
