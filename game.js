@@ -270,6 +270,8 @@ function defaultState(levelIdx) {
     hurtFlash: 0,                       // frames remaining for red hurt vignette
     floatingTexts: [],                  // [{ x, y, text, color, life, maxLife }]
     lasers: [],                         // [{ x1, y1, x2, y2, life }]
+    waveHpMul: 1.0,                     // resets each level, +20% per wave cleared
+    levelHpBase: 2,                     // base enemy HP, +50% between levels
   };
 }
 
@@ -284,7 +286,9 @@ function startLevel(levelIdx) {
   const prevTraits = state.soldierTraits || [];
   const prevRelics = state.relics || {};
   const prevUnits = state.units || 0;
+  const prevLevelHpBase = state.levelHpBase || 2;
   state = defaultState(levelIdx);
+  state.levelHpBase = levelIdx === 0 ? 2 : Math.round(prevLevelHpBase * 1.5);
   state.squadX   = W / 2;
   state.squadY   = getEffectiveSquadY();
   state.comboMode = true;
@@ -782,11 +786,10 @@ function spawnColorOrbAt(x, y, color) {
 //  SPAWN ENEMIES at a world scroll position
 // ══════════════════════════════════════════════
 function spawnEnemiesAtScroll(count, scrollPos) {
-  // Enemies are stored with a worldOffset relative to their spawn scrollPos
-  // Their screen Y = rowScreenY(scrollPos) + grid offsets, scrolling with the world
   const cols = Math.ceil(Math.sqrt(count * 1.6));
   const spacingX = 36;
   const spacingY = 32;
+  const enemyHp = Math.round(state.levelHpBase * state.waveHpMul);
 
   for (let i = 0; i < count; i++) {
     const col = i % cols;
@@ -798,7 +801,7 @@ function spawnEnemiesAtScroll(count, scrollPos) {
       offsetX: (col - (cols - 1) / 2) * spacingX + (Math.random() - 0.5) * 8,
       offsetY: -row * spacingY,
       alive: true,
-      hp: 2,
+      hp: Math.max(1, enemyHp),
       flashTimer: 0,
     });
   }
@@ -995,6 +998,7 @@ function updateWorld() {
       if (distAhead <= ROW_SPACING && !row.spawned) {
         row.spawned = true;
         spawnEnemiesAtScroll(row.count, row.scrollPos);
+        state.waveHpMul *= 1.2;
       }
       if (distAhead <= 0 && !row.passed) {
         row.passed = true;
