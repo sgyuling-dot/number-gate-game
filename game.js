@@ -454,6 +454,8 @@ function showOverlay(icon, title, msg, btnText, cb) {
 
 function gameOver() {
   state.phase = 'dead';
+  state.screenShake = 0;
+  state.hurtFlash = 0;
   state.relics = {};
   state.soldierColors = [];
   state.soldierTraits = [];
@@ -464,6 +466,8 @@ function gameOver() {
 
 function levelWin() {
   state.phase = 'win';
+  state.screenShake = 0;
+  state.hurtFlash = 0;
   const isLast = state.level + 1 >= LEVELS.length;
   if (isLast) {
     state.relics = {};
@@ -528,17 +532,19 @@ function applyGate(side) {
   const color = side.color;
   metrics.gateChoices++;
   state.gateFlash = { color, timer: 18 };
-  const baseCount = 4;
+  const GATE_ORB_IMMUNE = 60;
+  const baseCount = Math.round(4 * state.waveHpMul);
   for (let i = 0; i < baseCount; i++) {
     const ox = (Math.random() - 0.5) * 50;
     const oy = -15 - Math.random() * 25;
-    spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color);
+    spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color, GATE_ORB_IMMUNE);
   }
   if (hasRelic('greedy_hand')) {
-    for (let i = 0; i < 2; i++) {
+    const extraCount = Math.max(2, Math.round(baseCount * 0.5));
+    for (let i = 0; i < extraCount; i++) {
       const ox = (Math.random() - 0.5) * 50;
       const oy = -20 - Math.random() * 30;
-      spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color);
+      spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color, GATE_ORB_IMMUNE);
     }
     spawnFloatingText(state.squadX, state.squadY - 55, '贪婪!', '#ffcc44', 30);
   }
@@ -778,7 +784,7 @@ function spawnColorOrb(x, y) {
   spawnColorOrbAt(x, y, color);
 }
 
-function spawnColorOrbAt(x, y, color) {
+function spawnColorOrbAt(x, y, color, immuneFrames) {
   const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
   const speed = 1.2 + Math.random() * 1.3;
   state.colorOrbs.push({
@@ -788,6 +794,7 @@ function spawnColorOrbAt(x, y, color) {
     color,
     life: COLOR_ORB_LIFE,
     bounceCount: 0,
+    immune: immuneFrames || 0,
   });
 }
 
@@ -1280,6 +1287,7 @@ function updateWorld() {
       orb.y  += orb.vy;
       orb.vy += 0.025;  // slower gravity
       orb.life--;
+      if (orb.immune > 0) orb.immune--;
 
       // Playable area bounds
       const topBound    = H * 0.30;
@@ -1313,7 +1321,8 @@ function updateWorld() {
         continue;
       }
 
-      // Squad collision — with feedback
+      // Squad collision — with feedback (skip if immune)
+      if (orb.immune > 0) continue;
       const dx = orb.x - squadSX2, dy = orb.y - squadSY2;
       if (dx * dx + dy * dy < collectR * collectR) {
         spawnCollectRing(orb.x, orb.y, orb.color);
