@@ -43,18 +43,36 @@ comboModeCheckbox.addEventListener('change', () => {
 //  RELIC SYSTEM
 // ══════════════════════════════════════════════
 const RELIC_DEFS = {
+  // ── 兵种强化 ──
   red_core:     { name: '红炎核心',   desc: '巨人兵体积x3，爆炸率20%',           icon: '🌋' },
   prism:        { name: '棱镜折射',   desc: '激光命中后20%折射第二个敌人',       icon: '💎' },
   barrage:      { name: '弹幕风暴',   desc: '分裂率25%，弹道增至7条',           icon: '🌪️' },
   elite:        { name: '精英征召',   desc: '三消产兵数量翻倍',                 icon: '👑' },
+  // ── 三消操控 ──
   color_storm:  { name: '色彩风暴',   desc: '红/蓝球20%变为双色球',             icon: '🔮' },
   greedy_hand:  { name: '贪婪之手',   desc: '过门额外产出1个同色球',             icon: '🤲' },
   purify:       { name: '净化之光',   desc: '满格无消除时自动清除最左1格',       icon: '✨' },
   chain_react:  { name: '连锁反应',   desc: '消除后25%变1球为消除色',           icon: '⚡' },
+  // ── 战斗增益 ──
   armor_pierce: { name: '穿甲弹',     desc: '子弹伤害+1，敌人一击必杀',         icon: '🔫' },
   mag_shield:   { name: '磁力护盾',   desc: '吸球+80%，20%格挡伤害',           icon: '🧲' },
   speed_shot:   { name: '速射协议',   desc: '射速+30%，掉球率提升至35%',         icon: '🔥' },
   undying:      { name: '不死鸟',     desc: '每关1次复活(5单位+冻结)',           icon: '🔱' },
+  // ── 新增：兵种强化II ──
+  inferno:      { name: '炼狱余烬',   desc: '爆炸击杀的敌人引发二次爆炸',       icon: '💥' },
+  overcharge:   { name: '超频透镜',   desc: '激光伤害翻倍(2→4)，宽度+50%',     icon: '🔭' },
+  ricochet:     { name: '跳弹',       desc: '子弹击杀后弹向最近敌人1次',         icon: '🎯' },
+  veteran:      { name: '老兵不死',   desc: '士兵上限+10(20→30)',               icon: '🎖️' },
+  // ── 新增：三消操控II ──
+  wild_card:    { name: '万能牌',     desc: '击杀掉落的球30%变为万能色',         icon: '🃏' },
+  echo:         { name: '回声',       desc: '三消后30%额外注入1个消除色球',     icon: '🔔' },
+  time_warp:    { name: '时间扭曲',   desc: '冻结效果持续时间翻倍',             icon: '⏳' },
+  gold_rush:    { name: '淘金热',     desc: '黄色球入槽时30%额外注入1黄球',     icon: '⛏️' },
+  // ── 新增：战斗增益II ──
+  sniper:       { name: '狙击协议',   desc: '子弹速度+60%，射程+50%',           icon: '🎯' },
+  thorns:       { name: '荆棘',       desc: '受伤时对攻击者反弹3点伤害',         icon: '🌿' },
+  heal_pulse:   { name: '生命脉冲',   desc: '每次三消恢复1个失去的单位',         icon: '💚' },
+  berserker:    { name: '狂战士',     desc: '单位越少攻速越快(最高2倍)',         icon: '⚔️' },
 };
 const RELIC_IDS = Object.keys(RELIC_DEFS);
 function chance(p) { return Math.random() < p; }
@@ -161,7 +179,7 @@ const SHOOT_INTERVAL    = 18;    // frames
 const ENEMY_ADVANCE     = 0.9;   // px/frame
 const GATE_H_WORLD      = 110;   // gate height in world units
 const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
-const MAX_UNITS         = 20;
+let   MAX_UNITS         = 20;
 const ENEMY_CONVERGE    = 0.15;  // px/frame drift toward squad X
 
 // ── 7-slot queue constants ──────────────────
@@ -322,8 +340,10 @@ function buildSoldiers() {
 
 function defaultTrait() { return {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0}; }
 
+function getMaxUnits() { return hasRelic('veteran') ? 30 : 20; }
+
 function addUnit(color, trait) {
-  if (state.units >= MAX_UNITS) return;
+  if (state.units >= getMaxUnits()) return;
   state.units++;
   state.soldierColors.push(color);
   state.soldierTraits.push(trait || defaultTrait());
@@ -543,10 +563,17 @@ function injectSlot(color) {
     }
   }
   q.push(color);
-
   state.slotFlash[q.length - 1] = 14;
   spawnTokenParticles(color === 'dual' ? 'blue' : color);
   resolveSlotMatches();
+
+  if (hasRelic('gold_rush') && color === 'yellow' && chance(0.3) && q.length < SLOT_COUNT) {
+    q.push('yellow');
+    state.slotFlash[q.length - 1] = 14;
+    spawnFloatingText(slotScreenX(q.length - 1), slotBarY() - 20, '淘金!', '#ffcc00', 35);
+    spawnTokenParticles('yellow');
+    resolveSlotMatches();
+  }
 }
 
 function resolveSlotMatches() {
@@ -623,6 +650,16 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
   metrics.matchTriggered++;
   triggerSlotSkill(matchColor, matchCount);
 
+  if (hasRelic('echo') && chance(0.3)) {
+    const q2 = state.slotQueue;
+    if (q2.length < SLOT_COUNT) {
+      q2.push(matchColor);
+      state.slotFlash[q2.length - 1] = 14;
+      spawnFloatingText(sx, sy - 70, '回声!', '#ddbbff', 40);
+      spawnParticles(sx, sy, orbTextColor(matchColor), 6);
+    }
+  }
+
   // Relic: chain_react — 25% chance to convert 1 random orb to the matched color
   if (hasRelic('chain_react') && chance(0.25) && q.length > 0) {
     const candidates = [];
@@ -635,6 +672,13 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
       state.slotFlash[pick] = 14;
       spawnFloatingText(sx, sy - 55, '连锁!', '#aaddff', 45);
     }
+  }
+
+  if (hasRelic('heal_pulse') && state.units < getMaxUnits()) {
+    addUnit('blue', defaultTrait());
+    updateHUD(); buildSoldiers();
+    spawnFloatingText(sx, sy - 85, '治愈!', '#44ff88', 40);
+    spawnParticles(sx, sy, '#44ff88', 6);
   }
 }
 
@@ -679,7 +723,8 @@ function triggerSlotSkill(color, count) {
     updateHUD(); buildSoldiers();
     spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount}巨人兵!`, '#ff6666', 50);
   } else if (color === 'blue') {
-    const freezeFrames = Math.round(120 * decayMul);
+    const baseFreezeFrames = Math.round(120 * decayMul);
+    const freezeFrames = hasRelic('time_warp') ? baseFreezeFrames * 2 : baseFreezeFrames;
     state.freezeTimer = Math.max(state.freezeTimer || 0, freezeFrames);
     spawnParticles(W / 2, state.squadY - 60, '#66ccff', 12);
     for (let i = 0; i < spawnCount; i++) {
@@ -705,10 +750,11 @@ function spawnTokenParticles(color) {
 }
 
 function spawnColorOrb(x, y) {
-  // Color guarantee: bias toward colors that would complete a match-3
   const q = state.slotQueue;
   let color;
-  if (q.length >= 2 && chance(0.4)) {
+  if (hasRelic('wild_card') && chance(0.3)) {
+    color = 'dual';
+  } else if (q.length >= 2 && chance(0.4)) {
     const tail = q[q.length - 1];
     const prev = q[q.length - 2];
     if (tail === prev && tail !== 'dual') { color = tail; }
@@ -971,7 +1017,12 @@ function updateWorld() {
 
   // ── Shooting ──────────────────────────────
   state.shootTimer++;
-  const effectiveShootInterval = hasRelic('speed_shot') ? Math.round(SHOOT_INTERVAL * 0.70) : SHOOT_INTERVAL;
+  let effectiveShootInterval = hasRelic('speed_shot') ? Math.round(SHOOT_INTERVAL * 0.70) : SHOOT_INTERVAL;
+  if (hasRelic('berserker')) {
+    const maxU = getMaxUnits();
+    const ratio = Math.max(0.5, state.units / maxU);
+    effectiveShootInterval = Math.max(4, Math.round(effectiveShootInterval * ratio));
+  }
   const hasTargets = state.enemies.length > 0 || state.activeWall;
   if (state.shootTimer >= effectiveShootInterval && hasTargets) {
     state.shootTimer = 0;
@@ -982,7 +1033,8 @@ function updateWorld() {
   for (let i = state.bullets.length - 1; i >= 0; i--) {
     const b = state.bullets[i];
     b.x += b.vx; b.y += b.vy;
-    if (b.y < H * ROAD_HORIZON - 20 || b.x < 0 || b.x > W) {
+    const bulletOOB = hasRelic('sniper') ? (H * ROAD_HORIZON - 50) : (H * ROAD_HORIZON - 20);
+    if (b.y < bulletOOB || b.x < -30 || b.x > W + 30) {
       state.bullets.splice(i, 1);
     }
   }
@@ -1042,6 +1094,24 @@ function updateWorld() {
             spawnFloatingText(pos.x, pos.y - 25, '+ 球!', '#ffee66', 40);
           }
           state.enemies.splice(ei, 1);
+
+          if (hasRelic('ricochet') && state.enemies.length > 0) {
+            let nearE = null, nearD = Infinity;
+            for (const ne of state.enemies) {
+              const np = enemyScreenPos(ne);
+              const nd = (np.x - pos.x) ** 2 + (np.y - pos.y) ** 2;
+              if (nd < nearD) { nearD = nd; nearE = np; }
+            }
+            if (nearE) {
+              const rdx = nearE.x - pos.x, rdy = nearE.y - pos.y;
+              const rlen = Math.sqrt(rdx * rdx + rdy * rdy) || 1;
+              const bSpd = hasRelic('sniper') ? BULLET_SPEED * 1.6 : BULLET_SPEED;
+              state.bullets.push({ x: pos.x, y: pos.y,
+                vx: rdx / rlen * bSpd, vy: rdy / rlen * bSpd,
+                explodeChance: b.explodeChance || 0, splitChance: 0 });
+              spawnFloatingText(pos.x, pos.y - 15, '跳弹!', '#ffdd55', 30);
+            }
+          }
         }
         hit = true;
 
@@ -1051,6 +1121,7 @@ function updateWorld() {
           spawnParticles(pos.x, pos.y, '#ffaa00', 12);
           spawnFloatingText(pos.x, pos.y - 30, 'BOOM!', '#ff6600', 40);
           state.screenShake = Math.max(state.screenShake, 10);
+          const chainExplode = hasRelic('inferno') ? [] : null;
           for (let aei = state.enemies.length - 1; aei >= 0; aei--) {
             const ae = state.enemies[aei];
             const ap = enemyScreenPos(ae);
@@ -1063,9 +1134,32 @@ function updateWorld() {
                 if (state.comboMode && Math.random() < dropRate) {
                   spawnColorOrb(ap.x, ap.y);
                 }
+                if (chainExplode) chainExplode.push({x: ap.x, y: ap.y});
                 state.enemies.splice(aei, 1);
               }
             }
+          }
+          if (chainExplode && chainExplode.length > 0) {
+            for (const cp of chainExplode) {
+              spawnParticles(cp.x, cp.y, '#ff2200', 12);
+              spawnParticles(cp.x, cp.y, '#ffcc00', 8);
+              spawnFloatingText(cp.x, cp.y - 20, '炼狱!', '#ff4400', 35);
+              for (let aei2 = state.enemies.length - 1; aei2 >= 0; aei2--) {
+                const ae2 = state.enemies[aei2];
+                const ap2 = enemyScreenPos(ae2);
+                const d2 = (ap2.x - cp.x) ** 2 + (ap2.y - cp.y) ** 2;
+                if (d2 < AOE_R * AOE_R * 0.64) {
+                  ae2.hp = (ae2.hp || 1) - 2;
+                  ae2.flashTimer = 6;
+                  if (ae2.hp <= 0) {
+                    spawnParticles(ap2.x, ap2.y, '#ff6b35', 4);
+                    if (state.comboMode && Math.random() < dropRate) spawnColorOrb(ap2.x, ap2.y);
+                    state.enemies.splice(aei2, 1);
+                  }
+                }
+              }
+            }
+            state.screenShake = Math.max(state.screenShake, 16);
           }
         }
         break;
@@ -1099,6 +1193,27 @@ function updateWorld() {
       spawnParticles(pos.x, pos.y, '#ff4757', 14);
       spawnParticles(pos.x, pos.y, '#ff8866', 6);
       spawnParticles(pos.x, pos.y, '#ffffff', 3);
+
+      if (hasRelic('thorns')) {
+        const thornDmg = 3;
+        for (let ti = state.enemies.length - 1; ti >= 0 && ti !== ei; ti--) {
+          const te = state.enemies[ti];
+          const tp = enemyScreenPos(te);
+          const td = (tp.x - pos.x) ** 2 + (tp.y - pos.y) ** 2;
+          if (td < 80 * 80) {
+            te.hp = (te.hp || 1) - thornDmg;
+            te.flashTimer = 8;
+            spawnParticles(tp.x, tp.y, '#44ff88', 5);
+            if (te.hp <= 0) {
+              state.enemies.splice(ti, 1);
+              if (ti < ei) ei--;
+            }
+          }
+        }
+        spawnFloatingText(pos.x, pos.y - 30, '荆棘!', '#44ff88', 35);
+        spawnParticles(pos.x, pos.y, '#44ff88', 10);
+      }
+
       state.enemies.splice(ei, 1);
 
       if (hasRelic('mag_shield') && chance(0.20)) {
@@ -1118,7 +1233,7 @@ function updateWorld() {
           state.units = 5;
           state.soldierColors = ['blue','blue','blue','blue','blue'];
           state.soldierTraits = Array(5).fill(null).map(() => defaultTrait());
-          state.freezeTimer = Math.max(state.freezeTimer || 0, 180);
+          state.freezeTimer = Math.max(state.freezeTimer || 0, hasRelic('time_warp') ? 360 : 180);
           spawnFloatingText(state.squadX, state.squadY - 50, '不死鸟复活!', '#ffaa00', 80);
           spawnParticles(state.squadX, state.squadY, '#ffaa00', 20);
           state.screenShake = 20;
@@ -1217,7 +1332,8 @@ function fireLaser(x, y, dirX, dirY) {
   const y2 = y + dirY * beamLen;
   state.lasers.push({ x1: x, y1: y, x2, y2, dirX, dirY, life: 12 });
 
-  const LASER_HALF_W = 18;
+  const LASER_HALF_W = hasRelic('overcharge') ? 27 : 18;
+  const laserDmg = hasRelic('overcharge') ? 4 : 2;
   const dropRate = hasRelic('speed_shot') ? 0.35 : 0.2;
   let refractTarget = null;
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
@@ -1228,7 +1344,7 @@ function fireLaser(x, y, dirX, dirY) {
     if (proj < 0) continue;
     const perpDist = Math.abs(ex * (-dirY) + ey * dirX);
     if (perpDist < LASER_HALF_W) {
-      e.hp = (e.hp || 1) - 2;
+      e.hp = (e.hp || 1) - laserDmg;
       e.flashTimer = 8;
       spawnParticles(pos.x, pos.y, '#66ccff', 4);
       if (e.hp <= 0) {
@@ -1283,7 +1399,8 @@ function fireLaser(x, y, dirX, dirY) {
     const wx = ws.x - x, wy = ws.top - y;
     const proj = wx * dirX + wy * dirY;
     if (proj > 0) {
-      state.activeWall.hp = Math.max(0, state.activeWall.hp - 3);
+      const laserWallDmg = hasRelic('overcharge') ? 6 : 3;
+      state.activeWall.hp = Math.max(0, state.activeWall.hp - laserWallDmg);
       spawnParticles(ws.x, ws.top, '#66ccff', 8);
       if (state.activeWall.hp <= 0) {
         spawnParticles(W / 2, ws.top, '#ff6644', 20);
@@ -1336,8 +1453,9 @@ function fireFromSquad() {
     if (!target) continue;
     const dx = target.x - sx, dy = target.y - sy;
     const len = Math.sqrt(dx*dx + dy*dy);
-    const bvx = dx/len * BULLET_SPEED;
-    const bvy = dy/len * BULLET_SPEED;
+    const bSpd = hasRelic('sniper') ? BULLET_SPEED * 1.6 : BULLET_SPEED;
+    const bvx = dx/len * bSpd;
+    const bvy = dy/len * bSpd;
     const trait = sol.trait || defaultTrait();
 
     if (trait.laserChance > 0 && Math.random() < trait.laserChance) {
@@ -2026,20 +2144,22 @@ function drawBullets() {
 
 // ── Lasers ──────────────────────────────────
 function drawLasers() {
+  const laserWidth = hasRelic('overcharge') ? 9 : 6;
+  const coreWidth = hasRelic('overcharge') ? 3 : 2;
   for (const l of state.lasers) {
     const alpha = l.life / 12;
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = '#44ccff';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = laserWidth;
     ctx.shadowColor = '#00aaff';
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = hasRelic('overcharge') ? 30 : 20;
     ctx.beginPath();
     ctx.moveTo(l.x1, l.y1);
     ctx.lineTo(l.x2, l.y2);
     ctx.stroke();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = coreWidth;
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.moveTo(l.x1, l.y1);
@@ -2176,7 +2296,7 @@ function drawHealthBar() {
   const barH = 10;
   const barX = W / 2 - barW / 2;
   const barY = 8;
-  const frac = Math.max(0, state.units / MAX_UNITS);
+  const frac = Math.max(0, state.units / getMaxUnits());
 
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   roundRect(barX - 2, barY - 2, barW + 4, barH + 4, 6);
