@@ -508,13 +508,7 @@ function injectSlot(color) {
   }
 
   const q = state.slotQueue;
-  if (q.length >= SLOT_COUNT) {
-    q.shift();
-    metrics.overflows++;
-    const sx0 = slotScreenX(0);
-    spawnParticles(sx0, slotBarY(), '#666666', 5);
-    spawnFloatingText(sx0, slotBarY() - 30, '溢出', '#888888', 30);
-  }
+  if (q.length >= SLOT_COUNT) return; // full, wait for elimination
   q.push(color);
 
   state.slotFlash[q.length - 1] = 14;
@@ -523,107 +517,129 @@ function injectSlot(color) {
 }
 
 function resolveSlotMatches() {
-  let chainDelay = 0;
+  const q = state.slotQueue;
+  let didMatch = true;
 
-  const doPass = () => {
-    const q = state.slotQueue;
-    if (q.length < 3) return false;
+  while (didMatch) {
+    didMatch = false;
 
-    let bestRun = null;
-    for (const tc of COLORS3) {
-      let s = 0;
-      while (s < q.length) {
-        if (slotColorMatches(q[s], tc)) {
-          let e = s + 1;
-          while (e < q.length && slotColorMatches(q[e], tc)) e++;
-          if (e - s >= 3 && (!bestRun || e - s > bestRun.len)) {
-            bestRun = { start: s, len: e - s, color: tc };
-          }
-          s = e;
-        } else { s++; }
-      }
-    }
-
-    if (!bestRun) return false;
-
-    // Relic: dithering — 10% chance to extend run by 1 adjacent
-    if (hasRelic('dithering') && chance(0.1)) {
-      if (bestRun.start > 0) { bestRun.start--; bestRun.len++; }
-      else if (bestRun.start + bestRun.len < q.length) { bestRun.len++; }
-    }
-
-    const matchColor = bestRun.color;
-    const matchCount = bestRun.len;
-    q.splice(bestRun.start, matchCount);
-
-    // Flash remaining slots
-    for (let i = 0; i < q.length; i++) state.slotFlash[i] = 8;
-
-    // Elimination feedback
-    const midIdx = bestRun.start + Math.floor(matchCount / 2);
-    const sx = slotScreenX(Math.min(midIdx, SLOT_COUNT - 1));
-    const sy = slotBarY();
-    const skillLabel = matchColor === 'red' ? '清障!' : matchColor === 'blue' ? '冻结!' : '增援!';
-    spawnFloatingText(sx, sy - 35, skillLabel, orbTextColor(matchColor), 55);
-    spawnParticles(sx, sy, orbTextColor(matchColor), 14);
-    state.screenShake = 8;
-    state.gateFlash = { color: matchColor, timer: 20 };
-
-    metrics.matchTriggered++;
-    triggerSlotSkill(matchColor, matchCount);
-
-    // Relic: desert — yellow match converts 2 non-yellow to yellow
-    if (hasRelic('desert') && matchColor === 'yellow') {
-      const candidates = [];
-      for (let i = 0; i < q.length; i++) { if (q[i] !== 'yellow') candidates.push(i); }
-      for (let t = 0; t < 2 && candidates.length > 0; t++) {
-        const pick = Math.floor(Math.random() * candidates.length);
-        q[candidates[pick]] = 'yellow';
-        state.slotFlash[candidates[pick]] = 12;
-        candidates.splice(pick, 1);
-      }
-    }
-
-    // Relic: chain_light — 20% chance to remove up to 3 extra matching orbs
-    if (hasRelic('chain_light') && chance(0.2) && q.length >= 1) {
-      const toRemove = [];
-      for (let i = 0; i < q.length && toRemove.length < 3; i++) {
-        if (slotColorMatches(q[i], matchColor)) toRemove.push(i);
-      }
-      if (toRemove.length > 0) {
-        for (let i = toRemove.length - 1; i >= 0; i--) q.splice(toRemove[i], 1);
-        spawnFloatingText(sx, sy - 55, '连锁闪电!', '#aaddff', 50);
-      }
-    }
-
-    // Relic: ocean_tear — extra blue soldier
-    if (hasRelic('ocean_tear') && matchColor === 'blue') {
-      if (state.units < MAX_UNITS) {
-        state.units++; state.soldierColors.push('blue');
-        updateHUD(); buildSoldiers();
-        spawnFloatingText(state.squadX, state.squadY - 40, '+1蓝兵', '#66aaff', 45);
-      }
-    }
-
-    // Relic: golden_ratio — check if all 3 colors are now represented in recent matches
-    // (simplified: if queue currently has all 3 colors, bonus)
-    if (hasRelic('golden_ratio')) {
-      const has = {};
-      for (const c of q) { if (c === 'dual') { has.red = has.blue = true; } else has[c] = true; }
-      if (has.red && has.blue && has.yellow) {
-        const bonus = 2;
-        for (let b = 0; b < bonus && state.units < MAX_UNITS; b++) {
-          state.units++; state.soldierColors.push(COLORS3[b % 3]);
+    // --- Phase 1: consecutive 3+ same color ---
+    if (q.length >= 3) {
+      let bestRun = null;
+      for (const tc of COLORS3) {
+        let s = 0;
+        while (s < q.length) {
+          if (slotColorMatches(q[s], tc)) {
+            let e = s + 1;
+            while (e < q.length && slotColorMatches(q[e], tc)) e++;
+            if (e - s >= 3 && (!bestRun || e - s > bestRun.len)) {
+              bestRun = { start: s, len: e - s, color: tc };
+            }
+            s = e;
+          } else { s++; }
         }
-        updateHUD(); buildSoldiers();
-        spawnFloatingText(state.squadX, state.squadY - 70, '黄金比例! +2兵', '#ffee44', 60);
+      }
+      if (bestRun) {
+        if (hasRelic('dithering') && chance(0.1)) {
+          if (bestRun.start > 0) { bestRun.start--; bestRun.len++; }
+          else if (bestRun.start + bestRun.len < q.length) { bestRun.len++; }
+        }
+        q.splice(bestRun.start, bestRun.len);
+        fireMatchFeedback(bestRun.color, bestRun.len, bestRun.start);
+        didMatch = true;
+        continue;
       }
     }
 
-    return true;
-  };
+    // --- Phase 2: queue full (7) → find any 3 same color (non-consecutive) ---
+    if (q.length >= SLOT_COUNT) {
+      const counts = {};
+      for (const c of q) {
+        const keys = c === 'dual' ? ['red', 'blue'] : [c];
+        for (const k of keys) counts[k] = (counts[k] || 0) + 1;
+      }
+      let pickColor = null, pickMax = 0;
+      for (const tc of COLORS3) {
+        if ((counts[tc] || 0) >= 3 && (counts[tc] || 0) > pickMax) {
+          pickMax = counts[tc]; pickColor = tc;
+        }
+      }
+      if (pickColor) {
+        const indices = [];
+        for (let i = 0; i < q.length && indices.length < 3; i++) {
+          if (slotColorMatches(q[i], pickColor)) indices.push(i);
+        }
+        for (let i = indices.length - 1; i >= 0; i--) q.splice(indices[i], 1);
+        fireMatchFeedback(pickColor, 3, indices[0]);
+        didMatch = true;
+        continue;
+      }
+    }
+  }
+}
 
-  while (doPass()) { chainDelay++; }
+function fireMatchFeedback(matchColor, matchCount, startIdx) {
+  const q = state.slotQueue;
+  for (let i = 0; i < q.length; i++) state.slotFlash[i] = 8;
+
+  const midIdx = startIdx + Math.floor(matchCount / 2);
+  const sx = slotScreenX(Math.min(midIdx, SLOT_COUNT - 1));
+  const sy = slotBarY();
+  const skillLabel = matchColor === 'red' ? '清障!' : matchColor === 'blue' ? '冻结!' : '增援!';
+  spawnFloatingText(sx, sy - 35, skillLabel, orbTextColor(matchColor), 55);
+  spawnParticles(sx, sy, orbTextColor(matchColor), 14);
+  state.screenShake = 8;
+  state.gateFlash = { color: matchColor, timer: 20 };
+
+  metrics.matchTriggered++;
+  triggerSlotSkill(matchColor, matchCount);
+
+  // Relic: desert — yellow match converts 2 non-yellow to yellow
+  if (hasRelic('desert') && matchColor === 'yellow') {
+    const candidates = [];
+    for (let i = 0; i < q.length; i++) { if (q[i] !== 'yellow') candidates.push(i); }
+    for (let t = 0; t < 2 && candidates.length > 0; t++) {
+      const pick = Math.floor(Math.random() * candidates.length);
+      q[candidates[pick]] = 'yellow';
+      state.slotFlash[candidates[pick]] = 12;
+      candidates.splice(pick, 1);
+    }
+  }
+
+  // Relic: chain_light — 20% chance to remove up to 3 extra matching orbs
+  if (hasRelic('chain_light') && chance(0.2) && q.length >= 1) {
+    const toRemove = [];
+    for (let i = 0; i < q.length && toRemove.length < 3; i++) {
+      if (slotColorMatches(q[i], matchColor)) toRemove.push(i);
+    }
+    if (toRemove.length > 0) {
+      for (let i = toRemove.length - 1; i >= 0; i--) q.splice(toRemove[i], 1);
+      spawnFloatingText(sx, sy - 55, '连锁闪电!', '#aaddff', 50);
+    }
+  }
+
+  // Relic: ocean_tear — extra blue soldier
+  if (hasRelic('ocean_tear') && matchColor === 'blue') {
+    if (state.units < MAX_UNITS) {
+      state.units++; state.soldierColors.push('blue');
+      updateHUD(); buildSoldiers();
+      spawnFloatingText(state.squadX, state.squadY - 40, '+1蓝兵', '#66aaff', 45);
+    }
+  }
+
+  // Relic: golden_ratio
+  if (hasRelic('golden_ratio')) {
+    const has = {};
+    for (const c of q) { if (c === 'dual') { has.red = has.blue = true; } else has[c] = true; }
+    if (has.red && has.blue && has.yellow) {
+      const bonus = 2;
+      for (let b = 0; b < bonus && state.units < MAX_UNITS; b++) {
+        state.units++; state.soldierColors.push(COLORS3[b % 3]);
+      }
+      updateHUD(); buildSoldiers();
+      spawnFloatingText(state.squadX, state.squadY - 70, '黄金比例! +2兵', '#ffee44', 60);
+    }
+  }
 }
 
 function triggerSlotSkill(color, count) {
