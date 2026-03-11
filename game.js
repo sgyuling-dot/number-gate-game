@@ -81,9 +81,7 @@ function randColor() { return COLORS3[Math.floor(Math.random() * 3)]; }
 function randColorExcept(c) { const opts = COLORS3.filter(x => x !== c); return opts[Math.floor(Math.random() * opts.length)]; }
 function gateRow() {
   const l = randColor(); const r = randColorExcept(l);
-  let lb = 1 + Math.floor(Math.random() * 2), rb = 1 + Math.floor(Math.random() * 2);
-  if (Math.random() < 0.5) lb += 1; else rb += 1;
-  return {type:'gate', left:{color:l, bonus:lb}, right:{color:r, bonus:rb}};
+  return {type:'gate', left:{color:l}, right:{color:r}};
 }
 function wallRow(hp) { return {type:'wall', hp}; }
 const WALL_TIMEOUT_FRAMES = 600; // 10 seconds @60fps to break the wall
@@ -246,6 +244,7 @@ function defaultState(levelIdx) {
     slotSkillDecay: { red:0, blue:0, yellow:0 },
     freezeTimer: 0,                     // frames remaining for enemy freeze
     soldierColors: [],                  // color per soldier unit
+    soldierTraits: [],                  // per-soldier: {splitChance, explodeChance, sizeMul}
     relics: {},                         // { relic_id: true }
     lastRelicGain: null,                // relic id gained at end of last level
     activeWall: null,                   // { hp, maxHp, scrollPos, timer }
@@ -263,6 +262,7 @@ const ROW_SPACING = 420;  // world-scroll units between rows
 function startLevel(levelIdx) {
   const prevSlots = state.slotQueue || [];
   const prevColors = state.soldierColors || [];
+  const prevTraits = state.soldierTraits || [];
   const prevRelics = state.relics || {};
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
@@ -270,6 +270,7 @@ function startLevel(levelIdx) {
   state.comboMode = true;
   state.slotQueue = prevSlots;
   state.soldierColors = prevColors.length ? prevColors : Array(state.units).fill('blue');
+  state.soldierTraits = prevTraits.length ? prevTraits : Array(state.units).fill(null).map(() => ({splitChance:0, explodeChance:0, sizeMul:1}));
   state.relics = prevRelics;
 
   const def = LEVELS[levelIdx];
@@ -300,13 +301,31 @@ function buildSoldiers() {
   // Place in concentric rings
   const positions = circleFormation(n);
   for (let i = 0; i < n; i++) {
+    const trait = state.soldierTraits[i] || {splitChance:0, explodeChance:0, sizeMul:1};
     state.soldiers.push({
       ox: positions[i].x,
       oy: positions[i].y,
       color: state.soldierColors[i] || 'blue',
       bobPhase: Math.random() * Math.PI * 2,
+      trait,
     });
   }
+}
+
+function defaultTrait() { return {splitChance:0, explodeChance:0, sizeMul:1}; }
+
+function addUnit(color, trait) {
+  if (state.units >= MAX_UNITS) return;
+  state.units++;
+  state.soldierColors.push(color);
+  state.soldierTraits.push(trait || defaultTrait());
+}
+
+function removeUnit() {
+  if (state.units <= 0) return;
+  state.units = Math.max(0, state.units - 1);
+  if (state.soldierColors.length > state.units) state.soldierColors.pop();
+  if (state.soldierTraits.length > state.units) state.soldierTraits.pop();
 }
 
 function circleFormation(n) {
@@ -405,6 +424,7 @@ function gameOver() {
   state.phase = 'dead';
   state.relics = {};
   state.soldierColors = [];
+  state.soldierTraits = [];
   state.slotQueue = [];
   state.activeWall = null;
   showOverlay('💀','全军覆没！',`第 ${state.level+1} 关失败，单位归零。`,'再来一次', () => startLevel(state.level));
@@ -416,6 +436,7 @@ function levelWin() {
   if (isLast) {
     state.relics = {};
     state.soldierColors = [];
+    state.soldierTraits = [];
     state.slotQueue = [];
     state.activeWall = null;
     showOverlay('🏆','全关通关！',`恭喜完成全部 ${LEVELS.length} 关！剩余单位：${state.units}`,'再玩一次', () => startLevel(0));
@@ -469,21 +490,14 @@ function showRelicChoice(choices, level) {
 }
 
 // ══════════════════════════════════════════════
-//  APPLY GATE EFFECT — numeric bonus + color orb injection
+//  APPLY GATE EFFECT — color orb injection
 // ══════════════════════════════════════════════
 function applyGate(side) {
   const color = side.color;
-  const bonus = side.bonus || 1;
   metrics.gateChoices++;
   state.gateFlash = { color, timer: 18 };
-  for (let i = 0; i < bonus && state.units < MAX_UNITS; i++) {
-    state.units++;
-    state.soldierColors.push(color);
-  }
-  updateHUD();
-  buildSoldiers();
-  spawnFloatingText(state.squadX, state.squadY - 50, `+${bonus}`, '#ffffff', 40);
   spawnColorOrbAt(state.squadX, state.squadY - 20, color);
+  metrics.gateChosenForColor++;
 }
 
 // ══════════════════════════════════════════════
@@ -585,7 +599,7 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
   const midIdx = startIdx + Math.floor(matchCount / 2);
   const sx = slotScreenX(Math.min(midIdx, SLOT_COUNT - 1));
   const sy = slotBarY();
-  const skillLabel = matchColor === 'red' ? '清障!' : matchColor === 'blue' ? '冻结!' : '增援!';
+  const skillLabel = matchColor === 'red' ? '巨人!' : matchColor === 'blue' ? '冻结+兵!' : '分裂兵!';
   spawnFloatingText(sx, sy - 35, skillLabel, orbTextColor(matchColor), 55);
   spawnParticles(sx, sy, orbTextColor(matchColor), 14);
   state.screenShake = 8;
@@ -621,7 +635,7 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
   // Relic: ocean_tear — extra blue soldier
   if (hasRelic('ocean_tear') && matchColor === 'blue') {
     if (state.units < MAX_UNITS) {
-      state.units++; state.soldierColors.push('blue');
+      addUnit('blue');
       updateHUD(); buildSoldiers();
       spawnFloatingText(state.squadX, state.squadY - 40, '+1蓝兵', '#66aaff', 45);
     }
@@ -634,7 +648,7 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
     if (has.red && has.blue && has.yellow) {
       const bonus = 2;
       for (let b = 0; b < bonus && state.units < MAX_UNITS; b++) {
-        state.units++; state.soldierColors.push(COLORS3[b % 3]);
+        addUnit(COLORS3[b % 3]);
       }
       updateHUD(); buildSoldiers();
       spawnFloatingText(state.squadX, state.squadY - 70, '黄金比例! +2兵', '#ffee44', 60);
@@ -649,6 +663,8 @@ function triggerSlotSkill(color, count) {
   const decayMul = [1.0, 0.7, 0.5][Math.min(prev, 2)];
   for (const c of COLORS3) sd[c] = 0;
   sd[color] = prev + 1;
+
+  const baseUnits = 1;
 
   if (color === 'red') {
     if (state.activeWall) {
@@ -672,16 +688,27 @@ function triggerSlotSkill(color, count) {
         state.enemies.splice(ei, 1);
       }
     }
+    for (let i = 0; i < baseUnits; i++) {
+      addUnit('red', {splitChance:0, explodeChance:0.1, sizeMul:2});
+    }
+    updateHUD(); buildSoldiers();
+    spawnFloatingText(state.squadX, state.squadY - 60, '+巨人兵!', '#ff6666', 50);
   } else if (color === 'blue') {
     const freezeFrames = Math.round(120 * decayMul);
     state.freezeTimer = Math.max(state.freezeTimer || 0, freezeFrames);
     spawnParticles(W / 2, state.squadY - 60, '#66ccff', 12);
-  } else if (color === 'yellow') {
-    const bonus = Math.round(2 * decayMul);
-    for (let i = 0; i < bonus && state.units < MAX_UNITS; i++) {
-      state.units++; state.soldierColors.push('yellow');
+    const blueBonus = baseUnits + 1;
+    for (let i = 0; i < blueBonus; i++) {
+      addUnit('blue');
     }
     updateHUD(); buildSoldiers();
+    spawnFloatingText(state.squadX, state.squadY - 60, `+${blueBonus}蓝兵!`, '#66aaff', 50);
+  } else if (color === 'yellow') {
+    for (let i = 0; i < baseUnits; i++) {
+      addUnit('yellow', {splitChance:0.1, explodeChance:0, sizeMul:1});
+    }
+    updateHUD(); buildSoldiers();
+    spawnFloatingText(state.squadX, state.squadY - 60, '+分裂兵!', '#ffcc00', 50);
   }
 }
 
@@ -908,6 +935,7 @@ function updateWorld() {
       state.activeWall = null;
       state.relics = {};
       state.soldierColors = [];
+      state.soldierTraits = [];
       state.slotQueue = [];
       showOverlay('🧱','墙壁未击破！',`第 ${state.level+1} 关失败，火力不足！`,'再来一次', () => startLevel(state.level));
       return;
@@ -977,7 +1005,14 @@ function updateWorld() {
       const b = state.bullets[bi];
       if (b.y >= wScreen.top - 10 && b.y <= wScreen.bottom &&
           b.x > wScreen.left && b.x < wScreen.right) {
-        wall.hp--;
+        let wallDmg = 1;
+        if ((b.explodeChance || 0) > 0 && Math.random() < b.explodeChance) {
+          wallDmg = 5;
+          spawnParticles(b.x, b.y, '#ff4400', 14);
+          spawnFloatingText(b.x, b.y - 20, 'BOOM!', '#ff6600', 35);
+          state.screenShake = Math.max(state.screenShake, 8);
+        }
+        wall.hp = Math.max(0, wall.hp - wallDmg);
         spawnParticles(b.x, b.y, '#ffaa33', 5);
         spawnParticles(b.x, b.y, '#ffffff', 3);
         state.bullets.splice(bi, 1);
@@ -1013,6 +1048,26 @@ function updateWorld() {
         }
         state.enemies.splice(ei, 1);
         hit = true;
+
+        if ((b.explodeChance || 0) > 0 && Math.random() < b.explodeChance) {
+          const AOE_R = 60;
+          spawnParticles(pos.x, pos.y, '#ff4400', 18);
+          spawnParticles(pos.x, pos.y, '#ffaa00', 12);
+          spawnFloatingText(pos.x, pos.y - 30, 'BOOM!', '#ff6600', 40);
+          state.screenShake = Math.max(state.screenShake, 10);
+          for (let aei = state.enemies.length - 1; aei >= 0; aei--) {
+            const ae = state.enemies[aei];
+            const ap = enemyScreenPos(ae);
+            const adx = ap.x - pos.x, ady = ap.y - pos.y;
+            if (adx*adx + ady*ady < AOE_R * AOE_R) {
+              spawnParticles(ap.x, ap.y, '#ff6b35', 5);
+              if (state.comboMode && Math.random() < dropRate) {
+                spawnColorOrb(ap.x, ap.y);
+              }
+              state.enemies.splice(aei, 1);
+            }
+          }
+        }
         break;
       }
     }
@@ -1051,8 +1106,7 @@ function updateWorld() {
         spawnFloatingText(pos.x, pos.y - 20, '格挡!', '#66ccff');
         state.screenShake = 4;
       } else {
-        state.units = Math.max(0, state.units - 1);
-        if (state.soldierColors.length > state.units) state.soldierColors.pop();
+        removeUnit();
         state.screenShake = 12;
         state.hurtFlash = 18;
         spawnFloatingText(pos.x, pos.y - 20, '-1', '#ff4444');
@@ -1065,6 +1119,7 @@ function updateWorld() {
           state.relics.phoenix = false;
           state.units = 3;
           state.soldierColors = ['blue','blue','blue'];
+          state.soldierTraits = [defaultTrait(), defaultTrait(), defaultTrait()];
           spawnFloatingText(state.squadX, state.squadY - 50, '凤凰复活!', '#ffaa00', 80);
           state.screenShake = 20;
           updateHUD();
@@ -1197,7 +1252,23 @@ function fireFromSquad() {
     if (!target) continue;
     const dx = target.x - sx, dy = target.y - sy;
     const len = Math.sqrt(dx*dx + dy*dy);
-    state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: dx/len * BULLET_SPEED, vy: dy/len * BULLET_SPEED });
+    const bvx = dx/len * BULLET_SPEED;
+    const bvy = dy/len * BULLET_SPEED;
+    const trait = sol.trait || defaultTrait();
+
+    state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
+      explodeChance: trait.explodeChance, splitChance: trait.splitChance });
+
+    if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
+      const spreadAngle = 0.18;
+      const cos1 = Math.cos(spreadAngle), sin1 = Math.sin(spreadAngle);
+      state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
+        vx: bvx * cos1 - bvy * sin1, vy: bvx * sin1 + bvy * cos1,
+        explodeChance: 0, splitChance: 0 });
+      state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
+        vx: bvx * cos1 + bvy * sin1, vy: -bvx * sin1 + bvy * cos1,
+        explodeChance: 0, splitChance: 0 });
+    }
   }
 }
 
@@ -1737,21 +1808,9 @@ function drawGatePanel(side, x1, x2, y1, y2, scale) {
   ctx.fillRect(x1 + 1, y1, postW * 0.4, h);
   ctx.fillRect(x2 - postW + 1, y1, postW * 0.4, h);
 
-  // Bonus number (top area)
-  const bonusText = '+' + (side.bonus || 1);
-  const fontSize = Math.max(10, Math.round(22 * scale));
-  ctx.font = `900 ${fontSize}px "Segoe UI", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 4;
-  ctx.fillText(bonusText, cx, cy - h * 0.18);
-  ctx.shadowBlur = 0;
-
-  // Color orb icon (bottom area, smaller)
-  const orbR = Math.max(6, 13 * scale);
-  const orbCy = cy + h * 0.2;
+  // Color orb icon (centered)
+  const orbR = Math.max(8, 18 * scale);
+  const orbCy = cy;
   ctx.shadowColor = palette.orbGlow;
   ctx.shadowBlur = 10 * scale;
   ctx.fillStyle = palette.orbRim;
@@ -1863,11 +1922,13 @@ function drawEnemyFigure(x, y, s, flash) {
 // ── Bullets ─────────────────────────────────
 function drawBullets() {
   for (const b of state.bullets) {
-    ctx.fillStyle = '#ffe066';
-    ctx.shadowColor = '#ffcc00';
-    ctx.shadowBlur  = 10;
+    const isExplosive = (b.explodeChance || 0) > 0;
+    const isSplit = (b.splitChance || 0) > 0;
+    ctx.fillStyle = isExplosive ? '#ff6644' : isSplit ? '#66ffaa' : '#ffe066';
+    ctx.shadowColor = isExplosive ? '#ff3300' : isSplit ? '#00ff66' : '#ffcc00';
+    ctx.shadowBlur  = isExplosive ? 14 : 10;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, BULLET_R, 0, Math.PI * 2);
+    ctx.arc(b.x, b.y, isExplosive ? BULLET_R * 1.4 : BULLET_R, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.shadowBlur = 0;
@@ -1895,7 +1956,8 @@ function drawSquad() {
     const bob = Math.sin(frameCount * 0.12 + sol.bobPhase) * 1.5 * scale;
     const sx = squadSX + sol.ox * spacing;
     const sy = squadSY + sol.oy * spacing + bob;
-    drawSoldierFigure(sx, sy, scale, sol.color);
+    const sizeMul = (sol.trait && sol.trait.sizeMul) || 1;
+    drawSoldierFigure(sx, sy, scale, sol.color, sizeMul);
   }
 }
 
@@ -1905,9 +1967,10 @@ const SOLDIER_PALETTE = {
   yellow: { body: '#b8860b', helmet: '#cc9a10', shadow: '#f7d34f', highlight: 'rgba(255,220,100,0.25)', shine: 'rgba(255,240,150,0.3)' },
 };
 
-function drawSoldierFigure(x, y, scale, color) {
-  const br = UNIT_R * scale;
-  const hr = HEAD_R * scale;
+function drawSoldierFigure(x, y, scale, color, sizeMul) {
+  const sm = sizeMul || 1;
+  const br = UNIT_R * scale * sm;
+  const hr = HEAD_R * scale * sm;
   const pal = SOLDIER_PALETTE[color] || SOLDIER_PALETTE.blue;
 
   ctx.shadowColor = pal.shadow;
@@ -1942,6 +2005,15 @@ function drawSoldierFigure(x, y, scale, color) {
   ctx.beginPath();
   ctx.ellipse(x - hr * 0.2, y - br * 0.6 - hr * 0.45, hr * 0.3, hr * 0.18, -0.3, 0, Math.PI * 2);
   ctx.fill();
+
+  // Trait aura for special soldiers
+  if (sm > 1) {
+    ctx.strokeStyle = 'rgba(255,60,60,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, br * 1.3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   // Muzzle flash (pulsing)
   if (state.shootTimer < 6 && (state.enemies.length > 0 || state.activeWall)) {
