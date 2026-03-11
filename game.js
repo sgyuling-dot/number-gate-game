@@ -88,57 +88,57 @@ const WALL_TIMEOUT_FRAMES = 600; // 10 seconds @60fps to break the wall
 const LEVELS = [
   // Level 1 — Tutorial (gentle)
   { rows:[
-    gateRow(), {type:'wave', count:8},
-    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:20},
     wallRow(6),
-    gateRow(), {type:'wave', count:12},
-    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:24},
+    gateRow(), {type:'wave', count:20},
     wallRow(10),
   ]},
   // Level 2 — Easy
   { rows:[
-    gateRow(), {type:'wave', count:12},
-    gateRow(), {type:'wave', count:16},
-    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:24},
+    gateRow(), {type:'wave', count:32},
+    gateRow(), {type:'wave', count:36},
     wallRow(14),
-    gateRow(), {type:'wave', count:18},
-    gateRow(), {type:'wave', count:22},
+    gateRow(), {type:'wave', count:36},
+    gateRow(), {type:'wave', count:44},
     wallRow(18),
   ]},
   // Level 3 — Medium
   { rows:[
-    gateRow(), {type:'wave', count:20},
-    gateRow(), {type:'wave', count:24},
-    gateRow(), {type:'wave', count:28},
+    gateRow(), {type:'wave', count:40},
+    gateRow(), {type:'wave', count:48},
+    gateRow(), {type:'wave', count:56},
     wallRow(20),
-    gateRow(), {type:'wave', count:28},
-    gateRow(), {type:'wave', count:32},
-    gateRow(), {type:'wave', count:32},
+    gateRow(), {type:'wave', count:56},
+    gateRow(), {type:'wave', count:64},
+    gateRow(), {type:'wave', count:64},
     wallRow(26),
   ]},
   // Level 4 — Hard
   { rows:[
-    gateRow(), {type:'wave', count:28},
-    gateRow(), {type:'wave', count:32},
-    gateRow(), {type:'wave', count:36},
+    gateRow(), {type:'wave', count:56},
+    gateRow(), {type:'wave', count:64},
+    gateRow(), {type:'wave', count:72},
     wallRow(26),
-    gateRow(), {type:'wave', count:36},
-    gateRow(), {type:'wave', count:40},
-    gateRow(), {type:'wave', count:44},
-    gateRow(), {type:'wave', count:48},
+    gateRow(), {type:'wave', count:72},
+    gateRow(), {type:'wave', count:80},
+    gateRow(), {type:'wave', count:88},
+    gateRow(), {type:'wave', count:96},
     wallRow(35),
   ]},
   // Level 5 — Boss (brutal)
   { rows:[
-    gateRow(), {type:'wave', count:36},
-    gateRow(), {type:'wave', count:40},
-    gateRow(), {type:'wave', count:44},
+    gateRow(), {type:'wave', count:72},
+    gateRow(), {type:'wave', count:80},
+    gateRow(), {type:'wave', count:88},
     wallRow(32),
-    gateRow(), {type:'wave', count:48},
-    gateRow(), {type:'wave', count:52},
-    gateRow(), {type:'wave', count:56},
-    gateRow(), {type:'wave', count:60},
-    gateRow(), {type:'wave', count:64},
+    gateRow(), {type:'wave', count:96},
+    gateRow(), {type:'wave', count:104},
+    gateRow(), {type:'wave', count:112},
+    gateRow(), {type:'wave', count:120},
+    gateRow(), {type:'wave', count:128},
     wallRow(50),
   ]},
 ];
@@ -251,6 +251,7 @@ function defaultState(levelIdx) {
     screenShake: 0,                     // frames remaining for screen shake
     hurtFlash: 0,                       // frames remaining for red hurt vignette
     floatingTexts: [],                  // [{ x, y, text, color, life, maxLife }]
+    lasers: [],                         // [{ x1, y1, x2, y2, life }]
   };
 }
 
@@ -264,13 +265,20 @@ function startLevel(levelIdx) {
   const prevColors = state.soldierColors || [];
   const prevTraits = state.soldierTraits || [];
   const prevRelics = state.relics || {};
+  const prevUnits = state.units || 0;
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
   state.squadY   = getEffectiveSquadY();
   state.comboMode = true;
   state.slotQueue = prevSlots;
-  state.soldierColors = prevColors.length ? prevColors : Array(state.units).fill('blue');
-  state.soldierTraits = prevTraits.length ? prevTraits : Array(state.units).fill(null).map(() => ({splitChance:0, explodeChance:0, sizeMul:1}));
+  if (prevUnits > 0 && prevColors.length > 0) {
+    state.units = prevUnits;
+    state.soldierColors = prevColors;
+    state.soldierTraits = prevTraits;
+  } else {
+    state.soldierColors = Array(state.units).fill('blue');
+    state.soldierTraits = Array(state.units).fill(null).map(() => defaultTrait());
+  }
   state.relics = prevRelics;
 
   const def = LEVELS[levelIdx];
@@ -312,7 +320,7 @@ function buildSoldiers() {
   }
 }
 
-function defaultTrait() { return {splitChance:0, explodeChance:0, sizeMul:1}; }
+function defaultTrait() { return {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0}; }
 
 function addUnit(color, trait) {
   if (state.units >= MAX_UNITS) return;
@@ -599,7 +607,7 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
   const midIdx = startIdx + Math.floor(matchCount / 2);
   const sx = slotScreenX(Math.min(midIdx, SLOT_COUNT - 1));
   const sy = slotBarY();
-  const skillLabel = matchColor === 'red' ? '巨人!' : matchColor === 'blue' ? '冻结+兵!' : '分裂兵!';
+  const skillLabel = matchColor === 'red' ? '巨人!' : matchColor === 'blue' ? '激光兵!' : '分裂兵!';
   spawnFloatingText(sx, sy - 35, skillLabel, orbTextColor(matchColor), 55);
   spawnParticles(sx, sy, orbTextColor(matchColor), 14);
   state.screenShake = 8;
@@ -681,11 +689,12 @@ function triggerSlotSkill(color, count) {
       }
     } else {
       const killCount = Math.round(5 * decayMul);
-      for (let i = 0; i < killCount && state.enemies.length > 0; i++) {
-        const ei = state.enemies.length - 1;
-        const pos = enemyScreenPos(state.enemies[ei]);
+      let killed = 0;
+      for (let i = state.enemies.length - 1; i >= 0 && killed < killCount; i--) {
+        const pos = enemyScreenPos(state.enemies[i]);
         spawnParticles(pos.x, pos.y, '#ff4444', 8);
-        state.enemies.splice(ei, 1);
+        state.enemies.splice(i, 1);
+        killed++;
       }
     }
     for (let i = 0; i < baseUnits; i++) {
@@ -697,12 +706,11 @@ function triggerSlotSkill(color, count) {
     const freezeFrames = Math.round(120 * decayMul);
     state.freezeTimer = Math.max(state.freezeTimer || 0, freezeFrames);
     spawnParticles(W / 2, state.squadY - 60, '#66ccff', 12);
-    const blueBonus = baseUnits + 1;
-    for (let i = 0; i < blueBonus; i++) {
-      addUnit('blue');
+    for (let i = 0; i < baseUnits; i++) {
+      addUnit('blue', {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0.12});
     }
     updateHUD(); buildSoldiers();
-    spawnFloatingText(state.squadX, state.squadY - 60, `+${blueBonus}蓝兵!`, '#66aaff', 50);
+    spawnFloatingText(state.squadX, state.squadY - 60, '+激光兵!', '#66aaff', 50);
   } else if (color === 'yellow') {
     for (let i = 0; i < baseUnits; i++) {
       addUnit('yellow', {splitChance:0.1, explodeChance:0, sizeMul:1});
@@ -761,13 +769,13 @@ function spawnEnemiesAtScroll(count, scrollPos) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     state.enemies.push({
-      // world-space offsets from the wave's scroll position
       col, row,
       cols,
       waveScrollPos: scrollPos,
       offsetX: (col - (cols - 1) / 2) * spacingX + (Math.random() - 0.5) * 8,
-      offsetY: -row * spacingY,  // negative = toward horizon (screen up)
+      offsetY: -row * spacingY,
       alive: true,
+      hp: 2,
       flashTimer: 0,
     });
   }
@@ -886,6 +894,11 @@ function update() {
   if (state.hurtFlash > 0) state.hurtFlash--;
   if (state.freezeTimer > 0) state.freezeTimer--;
   for (let i = 0; i < SLOT_COUNT; i++) { if (state.slotFlash[i] > 0) state.slotFlash[i]--; }
+  for (let i = state.lasers.length - 1; i >= 0; i--) {
+    state.lasers[i].life--;
+    if (state.lasers[i].life <= 0) state.lasers.splice(i, 1);
+  }
+  for (const e of state.enemies) { if (e.flashTimer > 0) e.flashTimer--; }
 
   // Floating texts
   for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
@@ -1038,15 +1051,20 @@ function updateWorld() {
       const er = ENEMY_R * pos.scale;
       const dx = b.x - pos.x, dy = b.y - pos.y;
       if (dx*dx + dy*dy < (BULLET_R + er) ** 2) {
-        spawnParticles(pos.x, pos.y, '#ff6b35', 8);
-        spawnParticles(pos.x, pos.y, '#ffcc44', 4);
-        spawnParticles(pos.x, pos.y, '#ffffff', 2);
+        e.hp = (e.hp || 1) - 1;
+        e.flashTimer = 6;
+        spawnParticles(pos.x, pos.y, '#ff6b35', 4);
         const dropRate = hasRelic('lucky_clover') ? 0.35 : 0.2;
-        if (state.comboMode && Math.random() < dropRate) {
-          spawnColorOrb(pos.x, pos.y);
-          spawnFloatingText(pos.x, pos.y - 25, '+ 球!', '#ffee66', 40);
+
+        if (e.hp <= 0) {
+          spawnParticles(pos.x, pos.y, '#ffcc44', 4);
+          spawnParticles(pos.x, pos.y, '#ffffff', 2);
+          if (state.comboMode && Math.random() < dropRate) {
+            spawnColorOrb(pos.x, pos.y);
+            spawnFloatingText(pos.x, pos.y - 25, '+ 球!', '#ffee66', 40);
+          }
+          state.enemies.splice(ei, 1);
         }
-        state.enemies.splice(ei, 1);
         hit = true;
 
         if ((b.explodeChance || 0) > 0 && Math.random() < b.explodeChance) {
@@ -1060,11 +1078,15 @@ function updateWorld() {
             const ap = enemyScreenPos(ae);
             const adx = ap.x - pos.x, ady = ap.y - pos.y;
             if (adx*adx + ady*ady < AOE_R * AOE_R) {
+              ae.hp = (ae.hp || 1) - 2;
+              ae.flashTimer = 6;
               spawnParticles(ap.x, ap.y, '#ff6b35', 5);
-              if (state.comboMode && Math.random() < dropRate) {
-                spawnColorOrb(ap.x, ap.y);
+              if (ae.hp <= 0) {
+                if (state.comboMode && Math.random() < dropRate) {
+                  spawnColorOrb(ap.x, ap.y);
+                }
+                state.enemies.splice(aei, 1);
               }
-              state.enemies.splice(aei, 1);
             }
           }
         }
@@ -1210,6 +1232,52 @@ function getClusterRadius(n) {
   return 3;
 }
 
+// ── Laser beam (blue soldier AOE) ─────────────
+function fireLaser(x, y, dirX, dirY) {
+  const beamLen = H;
+  const x2 = x + dirX * beamLen;
+  const y2 = y + dirY * beamLen;
+  state.lasers.push({ x1: x, y1: y, x2, y2, dirX, dirY, life: 12 });
+
+  const LASER_HALF_W = 18;
+  const dropRate = hasRelic('lucky_clover') ? 0.35 : 0.2;
+  for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
+    const e = state.enemies[ei];
+    const pos = enemyScreenPos(e);
+    const ex = pos.x - x, ey = pos.y - y;
+    const proj = ex * dirX + ey * dirY;
+    if (proj < 0) continue;
+    const perpDist = Math.abs(ex * (-dirY) + ey * dirX);
+    if (perpDist < LASER_HALF_W) {
+      e.hp = (e.hp || 1) - 2;
+      e.flashTimer = 8;
+      spawnParticles(pos.x, pos.y, '#66ccff', 4);
+      if (e.hp <= 0) {
+        spawnParticles(pos.x, pos.y, '#88ddff', 6);
+        if (state.comboMode && Math.random() < dropRate) {
+          spawnColorOrb(pos.x, pos.y);
+        }
+        state.enemies.splice(ei, 1);
+      }
+    }
+  }
+
+  if (state.activeWall) {
+    const ws = wallScreenPos(state.activeWall);
+    const wx = ws.x - x, wy = ws.top - y;
+    const proj = wx * dirX + wy * dirY;
+    if (proj > 0) {
+      state.activeWall.hp = Math.max(0, state.activeWall.hp - 3);
+      spawnParticles(ws.x, ws.top, '#66ccff', 8);
+      if (state.activeWall.hp <= 0) {
+        spawnParticles(W / 2, ws.top, '#ff6644', 20);
+        state.activeWall.row.passed = true;
+        state.activeWall = null;
+      }
+    }
+  }
+}
+
 // ── Fire ────────────────────────────────────
 function fireFromSquad() {
   const hasEnemies = state.enemies.length > 0;
@@ -1256,18 +1324,21 @@ function fireFromSquad() {
     const bvy = dy/len * BULLET_SPEED;
     const trait = sol.trait || defaultTrait();
 
-    state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
-      explodeChance: trait.explodeChance, splitChance: trait.splitChance });
+    if (trait.laserChance > 0 && Math.random() < trait.laserChance) {
+      fireLaser(sx, sy - UNIT_R * scale, dx / len, dy / len);
+    } else {
+      state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
+        explodeChance: trait.explodeChance, splitChance: trait.splitChance });
 
-    if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
-      const spreadAngle = 0.18;
-      const cos1 = Math.cos(spreadAngle), sin1 = Math.sin(spreadAngle);
-      state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
-        vx: bvx * cos1 - bvy * sin1, vy: bvx * sin1 + bvy * cos1,
-        explodeChance: 0, splitChance: 0 });
-      state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
-        vx: bvx * cos1 + bvy * sin1, vy: -bvx * sin1 + bvy * cos1,
-        explodeChance: 0, splitChance: 0 });
+      if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
+        const angles = [-0.25, -0.08, 0.08, 0.25];
+        for (const a of angles) {
+          const ca = Math.cos(a), sa = Math.sin(a);
+          state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
+            vx: bvx * ca - bvy * sa, vy: bvx * sa + bvy * ca,
+            explodeChance: 0, splitChance: 0 });
+        }
+      }
     }
   }
 }
@@ -1297,6 +1368,7 @@ function draw() {
   drawWalls();
   drawEnemies();
   drawBullets();
+  drawLasers();
   drawColorOrbs();
 
   drawParticles();
@@ -1934,6 +2006,31 @@ function drawBullets() {
   ctx.shadowBlur = 0;
 }
 
+// ── Lasers ──────────────────────────────────
+function drawLasers() {
+  for (const l of state.lasers) {
+    const alpha = l.life / 12;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#44ccff';
+    ctx.lineWidth = 6;
+    ctx.shadowColor = '#00aaff';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.moveTo(l.x1, l.y1);
+    ctx.lineTo(l.x2, l.y2);
+    ctx.stroke();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(l.x1, l.y1);
+    ctx.lineTo(l.x2, l.y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 // ── Squad ────────────────────────────────────
 function drawSquad() {
   if (state.units <= 0) return;
@@ -1956,8 +2053,7 @@ function drawSquad() {
     const bob = Math.sin(frameCount * 0.12 + sol.bobPhase) * 1.5 * scale;
     const sx = squadSX + sol.ox * spacing;
     const sy = squadSY + sol.oy * spacing + bob;
-    const sizeMul = (sol.trait && sol.trait.sizeMul) || 1;
-    drawSoldierFigure(sx, sy, scale, sol.color, sizeMul);
+    drawSoldierFigure(sx, sy, scale, sol.color, sol.trait);
   }
 }
 
@@ -1967,8 +2063,9 @@ const SOLDIER_PALETTE = {
   yellow: { body: '#b8860b', helmet: '#cc9a10', shadow: '#f7d34f', highlight: 'rgba(255,220,100,0.25)', shine: 'rgba(255,240,150,0.3)' },
 };
 
-function drawSoldierFigure(x, y, scale, color, sizeMul) {
-  const sm = sizeMul || 1;
+function drawSoldierFigure(x, y, scale, color, trait) {
+  const t = trait || defaultTrait();
+  const sm = t.sizeMul || 1;
   const br = UNIT_R * scale * sm;
   const hr = HEAD_R * scale * sm;
   const pal = SOLDIER_PALETTE[color] || SOLDIER_PALETTE.blue;
@@ -2012,6 +2109,20 @@ function drawSoldierFigure(x, y, scale, color, sizeMul) {
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(x, y, br * 1.3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (t.laserChance > 0) {
+    ctx.strokeStyle = 'rgba(60,180,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, br * 1.2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (t.splitChance > 0) {
+    ctx.strokeStyle = 'rgba(100,255,150,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, br * 1.2, 0, Math.PI * 2);
     ctx.stroke();
   }
 
