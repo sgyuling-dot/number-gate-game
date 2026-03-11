@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-//  数字门大作战  v2  -  game.js
+//  Gate Rush  v2  -  game.js
 // ─────────────────────────────────────────────
 
 const canvas = document.getElementById('gameCanvas');
@@ -43,36 +43,36 @@ comboModeCheckbox.addEventListener('change', () => {
 //  RELIC SYSTEM
 // ══════════════════════════════════════════════
 const RELIC_DEFS = {
-  // ── 兵种强化 ──
-  red_core:     { name: '红炎核心',   desc: '巨人兵体积x3，爆炸率20%',           icon: '🌋' },
-  prism:        { name: '棱镜折射',   desc: '激光命中后20%折射第二个敌人',       icon: '💎' },
-  barrage:      { name: '弹幕风暴',   desc: '分裂率25%，弹道增至7条',           icon: '🌪️' },
-  elite:        { name: '精英征召',   desc: '三消产兵数量翻倍',                 icon: '👑' },
-  // ── 三消操控 ──
-  color_storm:  { name: '色彩风暴',   desc: '红/蓝球20%变为双色球',             icon: '🔮' },
-  greedy_hand:  { name: '贪婪之手',   desc: '过门额外产出1个同色球',             icon: '🤲' },
-  purify:       { name: '净化之光',   desc: '满格无消除时自动清除最左1格',       icon: '✨' },
-  chain_react:  { name: '连锁反应',   desc: '三消后25%概率将槽中随机1球变为相同颜色', icon: '⚡' },
-  // ── 战斗增益 ──
-  armor_pierce: { name: '穿甲弹',     desc: '子弹伤害+1，敌人一击必杀',         icon: '🔫' },
-  mag_shield:   { name: '磁力护盾',   desc: '吸球+80%，20%格挡伤害',           icon: '🧲' },
-  speed_shot:   { name: '速射协议',   desc: '射速+30%，掉球率提升至35%',         icon: '🔥' },
-  undying:      { name: '不死鸟',     desc: '每关1次复活(5单位+冻结)',           icon: '🔱' },
-  // ── 新增：兵种强化II ──
-  inferno:      { name: '炼狱余烬',   desc: '爆炸击杀的敌人引发二次爆炸',       icon: '💥' },
-  overcharge:   { name: '超频透镜',   desc: '激光伤害翻倍(2→4)，宽度+50%',     icon: '🔭' },
-  ricochet:     { name: '跳弹',       desc: '子弹击杀后弹向最近敌人1次',         icon: '🎯' },
-  veteran:      { name: '老兵不死',   desc: '士兵上限+10(20→30)',               icon: '🎖️' },
-  // ── 新增：三消操控II ──
-  wild_card:    { name: '万能牌',     desc: '击杀掉落的球30%变为万能色',         icon: '🃏' },
-  echo:         { name: '回声',       desc: '三消后30%额外注入1个消除色球',     icon: '🔔' },
-  time_warp:    { name: '时间扭曲',   desc: '冻结效果持续时间翻倍',             icon: '⏳' },
-  gold_rush:    { name: '淘金热',     desc: '黄色球入槽时30%额外注入1黄球',     icon: '⛏️' },
-  // ── 新增：战斗增益II ──
-  sniper:       { name: '狙击协议',   desc: '子弹速度+60%，射程+50%',           icon: '🎯' },
-  thorns:       { name: '荆棘',       desc: '受伤时对攻击者反弹3点伤害',         icon: '🌿' },
-  heal_pulse:   { name: '生命脉冲',   desc: '每次三消恢复1个失去的单位',         icon: '💚' },
-  berserker:    { name: '狂战士',     desc: '单位越少攻速越快(最高2倍)',         icon: '⚔️' },
+  // ── Unit Enhancement ──
+  red_core:     { name: 'Inferno Core',    desc: 'Giant size x3, explode chance 20%',          icon: '🌋' },
+  prism:        { name: 'Prism Refract',    desc: 'Laser 20% chance to refract to 2nd enemy',  icon: '💎' },
+  barrage:      { name: 'Barrage Storm',    desc: 'Split chance 25%, 7 trajectories',           icon: '🌪️' },
+  elite:        { name: 'Elite Draft',      desc: 'Match-3 spawns double units',                icon: '👑' },
+  // ── Slot Control ──
+  color_storm:  { name: 'Color Storm',      desc: 'Red/Blue orbs 20% become dual-color',        icon: '🔮' },
+  greedy_hand:  { name: 'Greedy Hand',      desc: 'Gates produce extra orbs',                    icon: '🤲' },
+  purify:       { name: 'Purify',           desc: 'Auto-clear leftmost slot when full',          icon: '✨' },
+  chain_react:  { name: 'Chain Reaction',   desc: '25% to convert a random orb to matched color',icon: '⚡' },
+  // ── Combat Boost ──
+  armor_pierce: { name: 'Armor Pierce',     desc: 'Bullet damage +1, one-shot kills',           icon: '🔫' },
+  mag_shield:   { name: 'Mag Shield',       desc: 'Collect range +80%, 20% block damage',       icon: '🧲' },
+  speed_shot:   { name: 'Rapid Fire',       desc: 'Fire rate +30%, drop rate up to 28%',        icon: '🔥' },
+  undying:      { name: 'Phoenix',          desc: 'Revive once per level (5 units + freeze)',    icon: '🔱' },
+  // ── Unit Enhancement II ──
+  inferno:      { name: 'Inferno Ember',    desc: 'Explosion kills trigger chain explosions',    icon: '💥' },
+  overcharge:   { name: 'Overcharge Lens',  desc: 'Laser damage x2 (2->4), width +50%',         icon: '🔭' },
+  ricochet:     { name: 'Ricochet',         desc: 'Bullets bounce to nearest enemy on kill',     icon: '🎯' },
+  veteran:      { name: 'Veteran',          desc: 'Unit cap +10 (20->30)',                       icon: '🎖️' },
+  // ── Slot Control II ──
+  wild_card:    { name: 'Wild Card',        desc: 'Kill drops 30% chance to become dual-color',  icon: '🃏' },
+  echo:         { name: 'Echo',             desc: '30% extra orb injection after match-3',       icon: '🔔' },
+  time_warp:    { name: 'Time Warp',        desc: 'Freeze duration doubled',                     icon: '⏳' },
+  gold_rush:    { name: 'Gold Rush',        desc: 'Yellow orbs 30% chance to inject extra yellow',icon: '⛏️' },
+  // ── Combat Boost II ──
+  sniper:       { name: 'Sniper Protocol',  desc: 'Bullet speed +60%, range +50%',               icon: '🎯' },
+  thorns:       { name: 'Thorns',           desc: 'Reflect 3 damage to nearby enemies when hit', icon: '🌿' },
+  heal_pulse:   { name: 'Heal Pulse',       desc: 'Restore 1 unit on every match-3',             icon: '💚' },
+  berserker:    { name: 'Berserker',        desc: 'Attack speed scales up as units decrease',    icon: '⚔️' },
 };
 const RELIC_IDS = Object.keys(RELIC_DEFS);
 function chance(p) { return Math.random() < p; }
@@ -461,7 +461,7 @@ function gameOver() {
   state.soldierTraits = [];
   state.slotQueue = [];
   state.activeWall = null;
-  showOverlay('💀','全军覆没！',`第 ${state.level+1} 关失败，单位归零。`,'再来一次', () => startLevel(state.level));
+  showOverlay('💀','Defeated!',`Level ${state.level+1} failed — all units lost.`,'Retry', () => startLevel(state.level));
 }
 
 function levelWin() {
@@ -475,7 +475,7 @@ function levelWin() {
     state.soldierTraits = [];
     state.slotQueue = [];
     state.activeWall = null;
-    showOverlay('🏆','全关通关！',`恭喜完成全部 ${LEVELS.length} 关！剩余单位：${state.units}`,'再玩一次', () => startLevel(0));
+    showOverlay('🏆','Victory!',`All ${LEVELS.length} levels cleared! Units remaining: ${state.units}`,'Play Again', () => startLevel(0));
   } else {
     const choices = rollRelicChoices(3);
     showRelicChoice(choices, state.level);
@@ -484,8 +484,8 @@ function levelWin() {
 
 function showRelicChoice(choices, level) {
   overlayIcon.textContent  = '🎉';
-  overlayTitle.textContent = `第 ${level+1} 关通关！`;
-  overlayMsg.textContent   = `剩余单位：${state.units}\n选择一个遗物：`;
+  overlayTitle.textContent = `Level ${level+1} Clear!`;
+  overlayMsg.textContent   = `Units remaining: ${state.units}\nChoose a relic:`;
   overlayBtn.style.display = 'none';
 
   // Build relic choice buttons
@@ -546,7 +546,7 @@ function applyGate(side) {
       const oy = -20 - Math.random() * 30;
       spawnColorOrbAt(state.squadX + ox, state.squadY + oy, color, GATE_ORB_IMMUNE);
     }
-    spawnFloatingText(state.squadX, state.squadY - 55, '贪婪!', '#ffcc44', 30);
+    spawnFloatingText(state.squadX, state.squadY - 55, 'Greedy!', '#ffcc44', 30);
   }
   metrics.gateChosenForColor++;
 }
@@ -576,7 +576,7 @@ function injectSlot(color) {
   if (q.length >= SLOT_COUNT) {
     if (hasRelic('purify')) {
       q.shift();
-      spawnFloatingText(slotScreenX(0), slotBarY() - 20, '净化!', '#eedd44', 35);
+      spawnFloatingText(slotScreenX(0), slotBarY() - 20, 'Purify!', '#eedd44', 35);
     } else {
       return;
     }
@@ -589,7 +589,7 @@ function injectSlot(color) {
   if (hasRelic('gold_rush') && color === 'yellow' && chance(0.3) && q.length < SLOT_COUNT) {
     q.push('yellow');
     state.slotFlash[q.length - 1] = 14;
-    spawnFloatingText(slotScreenX(q.length - 1), slotBarY() - 20, '淘金!', '#ffcc00', 35);
+    spawnFloatingText(slotScreenX(q.length - 1), slotBarY() - 20, 'Gold!', '#ffcc00', 35);
     spawnTokenParticles('yellow');
     resolveSlotMatches();
   }
@@ -660,7 +660,7 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
   const midIdx = startIdx + Math.floor(matchCount / 2);
   const sx = slotScreenX(Math.min(midIdx, SLOT_COUNT - 1));
   const sy = slotBarY();
-  const skillLabel = matchColor === 'red' ? '巨人!' : matchColor === 'blue' ? '激光兵!' : '分裂兵!';
+  const skillLabel = matchColor === 'red' ? 'Giant!' : matchColor === 'blue' ? 'Laser!' : 'Splitter!';
   spawnFloatingText(sx, sy - 35, skillLabel, orbTextColor(matchColor), 55);
   spawnParticles(sx, sy, orbTextColor(matchColor), 14);
   state.screenShake = 8;
@@ -674,7 +674,7 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
     if (q2.length < SLOT_COUNT) {
       q2.push(matchColor);
       state.slotFlash[q2.length - 1] = 14;
-      spawnFloatingText(sx, sy - 70, '回声!', '#ddbbff', 40);
+      spawnFloatingText(sx, sy - 70, 'Echo!', '#ddbbff', 40);
       spawnParticles(sx, sy, orbTextColor(matchColor), 6);
     }
   }
@@ -689,14 +689,14 @@ function fireMatchFeedback(matchColor, matchCount, startIdx) {
       const pick = candidates[Math.floor(Math.random() * candidates.length)];
       q[pick] = matchColor;
       state.slotFlash[pick] = 14;
-      spawnFloatingText(sx, sy - 55, '连锁!', '#aaddff', 45);
+      spawnFloatingText(sx, sy - 55, 'Chain!', '#aaddff', 45);
     }
   }
 
   if (hasRelic('heal_pulse') && state.units < getMaxUnits()) {
     addUnit('blue', defaultTrait());
     updateHUD(); buildSoldiers();
-    spawnFloatingText(sx, sy - 85, '治愈!', '#44ff88', 40);
+    spawnFloatingText(sx, sy - 85, 'Heal!', '#44ff88', 40);
     spawnParticles(sx, sy, '#44ff88', 6);
   }
 }
@@ -716,7 +716,7 @@ function triggerSlotSkill(color, count) {
       const dmg = Math.round(8 * decayMul);
       state.activeWall.hp = Math.max(0, state.activeWall.hp - dmg);
       spawnParticles(W / 2, slotBarY() - 100, '#ff4444', 15);
-      spawnFloatingText(W / 2, state.squadY - 80, `清障 -${dmg}HP`, '#ff6666', 50);
+      spawnFloatingText(W / 2, state.squadY - 80, `Clear -${dmg}HP`, '#ff6666', 50);
       if (state.activeWall.hp <= 0) {
         const ws = wallScreenPos(state.activeWall);
         spawnParticles(W / 2, ws.top, '#ff6644', 20);
@@ -740,7 +740,7 @@ function triggerSlotSkill(color, count) {
       addUnit('red', {splitChance:0, explodeChance:rExplode, sizeMul:rSizeMul, laserChance:0});
     }
     updateHUD(); buildSoldiers();
-    spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount}巨人兵!`, '#ff6666', 50);
+    spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Giant!`, '#ff6666', 50);
   } else if (color === 'blue') {
     const baseFreezeFrames = Math.round(120 * decayMul);
     const freezeFrames = hasRelic('time_warp') ? baseFreezeFrames * 2 : baseFreezeFrames;
@@ -750,14 +750,14 @@ function triggerSlotSkill(color, count) {
       addUnit('blue', {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0.12});
     }
     updateHUD(); buildSoldiers();
-    spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount}激光兵!`, '#66aaff', 50);
+    spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Laser!`, '#66aaff', 50);
   } else if (color === 'yellow') {
     const ySplit = hasRelic('barrage') ? 0.25 : 0.1;
     for (let i = 0; i < spawnCount; i++) {
       addUnit('yellow', {splitChance:ySplit, explodeChance:0, sizeMul:1, laserChance:0});
     }
     updateHUD(); buildSoldiers();
-    spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount}分裂兵!`, '#ffcc00', 50);
+    spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Splitter!`, '#ffcc00', 50);
   }
 }
 
@@ -992,7 +992,7 @@ function updateWorld() {
       state.soldierColors = [];
       state.soldierTraits = [];
       state.slotQueue = [];
-      showOverlay('🧱','墙壁未击破！',`第 ${state.level+1} 关失败，火力不足！`,'再来一次', () => startLevel(state.level));
+      showOverlay('🧱','Wall Not Broken!',`Level ${state.level+1} failed — not enough firepower!`,'Retry', () => startLevel(state.level));
       return;
     }
   }
@@ -1111,7 +1111,7 @@ function updateWorld() {
           spawnParticles(pos.x, pos.y, '#ffffff', 2);
           if (state.comboMode && Math.random() < dropRate) {
             spawnColorOrb(pos.x, pos.y);
-            spawnFloatingText(pos.x, pos.y - 25, '+ 球!', '#ffee66', 40);
+            spawnFloatingText(pos.x, pos.y - 25, '+ Orb!', '#ffee66', 40);
           }
           state.enemies.splice(ei, 1);
 
@@ -1129,7 +1129,7 @@ function updateWorld() {
               state.bullets.push({ x: pos.x, y: pos.y,
                 vx: rdx / rlen * bSpd, vy: rdy / rlen * bSpd,
                 explodeChance: b.explodeChance || 0, splitChance: 0 });
-              spawnFloatingText(pos.x, pos.y - 15, '跳弹!', '#ffdd55', 30);
+              spawnFloatingText(pos.x, pos.y - 15, 'Ricochet!', '#ffdd55', 30);
             }
           }
         }
@@ -1163,7 +1163,7 @@ function updateWorld() {
             for (const cp of chainExplode) {
               spawnParticles(cp.x, cp.y, '#ff2200', 12);
               spawnParticles(cp.x, cp.y, '#ffcc00', 8);
-              spawnFloatingText(cp.x, cp.y - 20, '炼狱!', '#ff4400', 35);
+              spawnFloatingText(cp.x, cp.y - 20, 'Inferno!', '#ff4400', 35);
               for (let aei2 = state.enemies.length - 1; aei2 >= 0; aei2--) {
                 const ae2 = state.enemies[aei2];
                 const ap2 = enemyScreenPos(ae2);
@@ -1230,14 +1230,14 @@ function updateWorld() {
             }
           }
         }
-        spawnFloatingText(pos.x, pos.y - 30, '荆棘!', '#44ff88', 35);
+        spawnFloatingText(pos.x, pos.y - 30, 'Thorns!', '#44ff88', 35);
         spawnParticles(pos.x, pos.y, '#44ff88', 10);
       }
 
       state.enemies.splice(ei, 1);
 
       if (hasRelic('mag_shield') && chance(0.20)) {
-        spawnFloatingText(pos.x, pos.y - 20, '格挡!', '#66ccff');
+        spawnFloatingText(pos.x, pos.y - 20, 'Block!', '#66ccff');
         state.screenShake = 4;
       } else {
         removeUnit();
@@ -1254,7 +1254,7 @@ function updateWorld() {
           state.soldierColors = ['blue','blue','blue','blue','blue'];
           state.soldierTraits = Array(5).fill(null).map(() => defaultTrait());
           state.freezeTimer = Math.max(state.freezeTimer || 0, hasRelic('time_warp') ? 360 : 180);
-          spawnFloatingText(state.squadX, state.squadY - 50, '不死鸟复活!', '#ffaa00', 80);
+          spawnFloatingText(state.squadX, state.squadY - 50, 'Phoenix Revive!', '#ffaa00', 80);
           spawnParticles(state.squadX, state.squadY, '#ffaa00', 20);
           state.screenShake = 20;
           updateHUD();
@@ -1326,8 +1326,8 @@ function updateWorld() {
       const dx = orb.x - squadSX2, dy = orb.y - squadSY2;
       if (dx * dx + dy * dy < collectR * collectR) {
         spawnCollectRing(orb.x, orb.y, orb.color);
-        const colorLabel = orb.color === 'red' ? '红' : orb.color === 'yellow' ? '黄' : '蓝';
-        spawnFloatingText(orb.x, orb.y - 15, colorLabel + '球', orbTextColor(orb.color), 45);
+        const colorLabel = orb.color === 'red' ? 'Red' : orb.color === 'yellow' ? 'Yellow' : 'Blue';
+        spawnFloatingText(orb.x, orb.y - 15, colorLabel + ' Orb', orbTextColor(orb.color), 45);
         awardColorToken(orb.color);
         state.colorOrbs.splice(oi, 1);
       }
@@ -1395,7 +1395,7 @@ function fireLaser(x, y, dirX, dirY) {
         x2: refractTarget.x + (rdx / rlen) * H * 0.5,
         y2: refractTarget.y + (rdy / rlen) * H * 0.5,
         dirX: rdx / rlen, dirY: rdy / rlen, life: 10 });
-      spawnFloatingText(refractTarget.x, refractTarget.y - 20, '折射!', '#88eeff', 35);
+      spawnFloatingText(refractTarget.x, refractTarget.y - 20, 'Refract!', '#88eeff', 35);
       for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
         const e = state.enemies[ei];
         const p = enemyScreenPos(e);
@@ -2506,9 +2506,9 @@ function drawSlotBar() {
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.fillText('◂旧', startX - 14, cy);
+  ctx.fillText('◂Old', startX - 14, cy);
   ctx.textAlign = 'left';
-  ctx.fillText('新▸', startX + totalW + 14, cy);
+  ctx.fillText('New▸', startX + totalW + 14, cy);
   ctx.textBaseline = 'alphabetic';
 }
 
