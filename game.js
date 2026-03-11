@@ -28,7 +28,7 @@ comboModeCheckbox.addEventListener('change', () => {
   state.comboMode = comboModeCheckbox.checked;
   if (!state.comboMode) {
     state.colorOrbs = [];
-    state.stackOrbs = [];
+    state.slotQueue = [];
   }
 });
 
@@ -79,7 +79,12 @@ function isMatchable(a, b) {
 const COLORS3 = ['red', 'yellow', 'blue'];
 function randColor() { return COLORS3[Math.floor(Math.random() * 3)]; }
 function randColorExcept(c) { const opts = COLORS3.filter(x => x !== c); return opts[Math.floor(Math.random() * opts.length)]; }
-function gateRow() { const l = randColor(); return {type:'gate', left:{color:l}, right:{color:randColorExcept(l)}}; }
+function gateRow() {
+  const l = randColor(); const r = randColorExcept(l);
+  let lb = 1 + Math.floor(Math.random() * 2), rb = 1 + Math.floor(Math.random() * 2);
+  if (Math.random() < 0.5) lb += 1; else rb += 1;
+  return {type:'gate', left:{color:l, bonus:lb}, right:{color:r, bonus:rb}};
+}
 function wallRow(hp) { return {type:'wall', hp}; }
 const WALL_TIMEOUT_FRAMES = 600; // 10 seconds @60fps to break the wall
 const LEVELS = [
@@ -161,10 +166,11 @@ const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
 const MAX_UNITS         = 20;
 const ENEMY_CONVERGE    = 0.15;  // px/frame drift toward squad X
 
-// ── Bottom stack constants ──────────────────
-const STACK_ORB_R       = 16;    // radius of orbs in the bottom stack
-const STACK_ORB_GAP     = 4;     // gap between stacked orbs
-const STACK_MAX_HEIGHT_FRAC = 0.55; // max fraction of H the stack can push up
+// ── 7-slot queue constants ──────────────────
+const SLOT_COUNT  = 7;
+const SLOT_SIZE   = 40;
+const SLOT_GAP    = 6;
+const SLOT_BAR_Y_OFFSET = 48;  // distance from canvas bottom to slot bar center
 
 // ══════════════════════════════════════════════
 //  PERSPECTIVE HELPERS
@@ -191,16 +197,13 @@ function scaleAtY(sy) {
   return 0.25 + 0.75 * t;
 }
 
-// ── Bottom stack helpers ─────────────────────
-function getStackOrbsPerRow() {
-  const roadW = ROAD_WIDTH_BOTTOM * W / 1.25;
-  return Math.max(1, Math.floor(roadW / (STACK_ORB_R * 2 + STACK_ORB_GAP)));
-}
+// ── 7-slot queue helpers ─────────────────────
+function slotBarY() { return H - SLOT_BAR_Y_OFFSET; }
 
-function getStackHeightPx() {
-  const orbsPerRow = getStackOrbsPerRow();
-  const rows = Math.ceil(state.stackOrbs.length / orbsPerRow);
-  return rows * (STACK_ORB_R * 2 + STACK_ORB_GAP);
+function slotScreenX(idx) {
+  const totalW = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP;
+  const startX = (W - totalW) / 2;
+  return startX + idx * (SLOT_SIZE + SLOT_GAP) + SLOT_SIZE / 2;
 }
 
 function getSquadClusterOffset() {
@@ -210,8 +213,7 @@ function getSquadClusterOffset() {
 }
 
 function getEffectiveSquadY() {
-  const stackH = Math.min(getStackHeightPx(), H * STACK_MAX_HEIGHT_FRAC);
-  return Math.max(H * 0.22, H - stackH - getSquadClusterOffset());
+  return Math.max(H * 0.22, slotBarY() - SLOT_SIZE / 2 - 12 - getSquadClusterOffset());
 }
 
 // ══════════════════════════════════════════════
@@ -238,10 +240,11 @@ function defaultState(levelIdx) {
     waveLabel: null,     // { text, timer }
     // ── Combo mode ──────────────────────────
     comboMode: true,
-    colorTokens: { red: 0, blue: 0 },  // pending tokens 0-2
-    activeBuffs: [],                    // [{ color, label }]
     colorOrbs: [],                      // [{ x, y, vx, vy, color, life }]
-    stackOrbs: [],                      // ['red'|'blue'|'yellow'|'dual', ...] bottom stack
+    slotQueue: [],                      // 7-slot queue: ['red'|'blue'|'yellow'|'dual', ...]
+    slotFlash: new Array(SLOT_COUNT).fill(0),  // per-slot flash timer
+    slotSkillDecay: { red:0, blue:0, yellow:0 },
+    freezeTimer: 0,                     // frames remaining for enemy freeze
     soldierColors: [],                  // color per soldier unit
     relics: {},                         // { relic_id: true }
     lastRelicGain: null,                // relic id gained at end of last level
@@ -258,16 +261,14 @@ function defaultState(levelIdx) {
 const ROW_SPACING = 420;  // world-scroll units between rows
 
 function startLevel(levelIdx) {
-  const prevBuffs = state.activeBuffs || [];
-  const prevStack = state.stackOrbs || [];
+  const prevSlots = state.slotQueue || [];
   const prevColors = state.soldierColors || [];
   const prevRelics = state.relics || {};
   state = defaultState(levelIdx);
   state.squadX   = W / 2;
   state.squadY   = getEffectiveSquadY();
   state.comboMode = true;
-  state.activeBuffs = prevBuffs;
-  state.stackOrbs = prevStack;
+  state.slotQueue = prevSlots;
   state.soldierColors = prevColors.length ? prevColors : Array(state.units).fill('blue');
   state.relics = prevRelics;
 
@@ -404,8 +405,7 @@ function gameOver() {
   state.phase = 'dead';
   state.relics = {};
   state.soldierColors = [];
-  state.stackOrbs = [];
-  state.activeBuffs = [];
+  state.slotQueue = [];
   state.activeWall = null;
   showOverlay('💀','全军覆没！',`第 ${state.level+1} 关失败，单位归零。`,'再来一次', () => startLevel(state.level));
 }
@@ -416,8 +416,7 @@ function levelWin() {
   if (isLast) {
     state.relics = {};
     state.soldierColors = [];
-    state.stackOrbs = [];
-    state.activeBuffs = [];
+    state.slotQueue = [];
     state.activeWall = null;
     showOverlay('🏆','全关通关！',`恭喜完成全部 ${LEVELS.length} 关！剩余单位：${state.units}`,'再玩一次', () => startLevel(0));
   } else {
@@ -470,218 +469,204 @@ function showRelicChoice(choices, level) {
 }
 
 // ══════════════════════════════════════════════
-//  APPLY GATE EFFECT — spawn 1 floating orb of the gate's color
+//  APPLY GATE EFFECT — numeric bonus + color orb injection
 // ══════════════════════════════════════════════
 function applyGate(side) {
   const color = side.color;
+  const bonus = side.bonus || 1;
+  metrics.gateChoices++;
   state.gateFlash = { color, timer: 18 };
-  const sy = state.squadY;
-  spawnColorOrbAt(state.squadX, sy - 20, color);
-}
-
-// ══════════════════════════════════════════════
-//  COLOR COMBO SYSTEM
-// ══════════════════════════════════════════════
-const COLOR_ORB_R    = 9;
-const COLOR_ORB_LIFE = 600;  // frames before orb fades (~10s @60fps)
-
-function awardColorToken(color) {
-  collectToStack(color);
-}
-
-function collectToStack(color) {
-  // rb_blind relic: 10% chance red/blue becomes dual
-  if (hasRelic('rb_blind') && (color === 'red' || color === 'blue') && chance(0.1)) {
-    color = 'dual';
-  }
-  state.stackOrbs.push(color);
-  spawnTokenParticles(color === 'dual' ? 'blue' : color);
-  resolveStackMatches();
-}
-
-function resolveStackMatches() {
-  const cols = getStackOrbsPerRow();
-  let looping = true;
-
-  while (looping) {
-    looping = false;
-    const orbs = state.stackOrbs;
-    const len = orbs.length;
-    if (len < 3) break;
-
-    const rows = Math.ceil(len / cols);
-    const toRemove = new Set();
-
-    // Scan a sequence of indices for runs of `targetColor`, treating dual as matching
-    function scanRuns(indices, targetColor) {
-      let s = 0;
-      while (s < indices.length) {
-        const c = orbs[indices[s]];
-        if (c === targetColor || (c === 'dual' && (targetColor === 'red' || targetColor === 'blue'))) {
-          let e = s + 1;
-          while (e < indices.length) {
-            const ce = orbs[indices[e]];
-            if (ce === targetColor || (ce === 'dual' && (targetColor === 'red' || targetColor === 'blue'))) {
-              e++;
-            } else break;
-          }
-          if (e - s >= 3) {
-            for (let k = s; k < e; k++) toRemove.add(indices[k]);
-          }
-          s = e;
-        } else {
-          s++;
-        }
-      }
-    }
-
-    const scanColors = ['red', 'blue', 'yellow'];
-
-    // --- Horizontal scan (each row, per color) ---
-    for (let r = 0; r < rows; r++) {
-      const rowStart = r * cols;
-      const rowEnd = Math.min(rowStart + cols, len);
-      const indices = [];
-      for (let i = rowStart; i < rowEnd; i++) indices.push(i);
-      for (const sc of scanColors) scanRuns(indices, sc);
-    }
-
-    // --- Vertical scan (each column, per color) ---
-    for (let c = 0; c < cols; c++) {
-      const colIdx = [];
-      for (let r = 0; r < rows; r++) {
-        const idx = r * cols + c;
-        if (idx < len) colIdx.push(idx);
-      }
-      for (const sc of scanColors) scanRuns(colIdx, sc);
-    }
-
-    if (toRemove.size === 0) break;
-
-    // --- Relic: 三心二意 — 10% chance to also remove one adjacent orb ---
-    if (hasRelic('dithering') && chance(0.1)) {
-      const candidates = new Set();
-      for (const idx of toRemove) {
-        const r = Math.floor(idx / cols), c2 = idx % cols;
-        const neighbors = [];
-        if (c2 > 0) neighbors.push(idx - 1);
-        if (c2 < cols - 1 && idx + 1 < len) neighbors.push(idx + 1);
-        if (r > 0) neighbors.push(idx - cols);
-        if (idx + cols < len) neighbors.push(idx + cols);
-        for (const n of neighbors) {
-          if (!toRemove.has(n) && n >= 0 && n < len) candidates.add(n);
-        }
-      }
-      if (candidates.size > 0) {
-        const arr = [...candidates];
-        toRemove.add(arr[Math.floor(Math.random() * arr.length)]);
-      }
-    }
-
-    // --- Tally removed orbs by color for rewards ---
-    const colorCounts = {};
-    for (const idx of toRemove) {
-      const c = orbs[idx];
-      if (c === 'dual') {
-        colorCounts['red'] = (colorCounts['red'] || 0) + 1;
-        colorCounts['blue'] = (colorCounts['blue'] || 0) + 1;
-      } else {
-        colorCounts[c] = (colorCounts[c] || 0) + 1;
-      }
-    }
-
-    // --- Remove in descending index order to keep array consistent ---
-    const sorted = [...toRemove].sort((a, b) => b - a);
-    for (const idx of sorted) state.stackOrbs.splice(idx, 1);
-
-    // --- Relic: 沙漠 — yellow elimination converts 2 non-yellow orbs to yellow ---
-    if (hasRelic('desert') && colorCounts['yellow']) {
-      let converted = 0;
-      const indices = [];
-      for (let i = 0; i < state.stackOrbs.length; i++) {
-        if (state.stackOrbs[i] !== 'yellow') indices.push(i);
-      }
-      for (let t = 0; t < 2 && indices.length > 0; t++) {
-        const pick = Math.floor(Math.random() * indices.length);
-        state.stackOrbs[indices[pick]] = 'yellow';
-        indices.splice(pick, 1);
-        converted++;
-      }
-    }
-
-    // --- Relic: chain_light — 20% chance to randomly remove 3 extra same-color orbs ---
-    if (hasRelic('chain_light') && chance(0.2) && state.stackOrbs.length >= 3) {
-      const randIdx = Math.floor(Math.random() * state.stackOrbs.length);
-      const chainColor = state.stackOrbs[randIdx];
-      const chainRemove = [randIdx];
-      for (let ci = 0; ci < state.stackOrbs.length && chainRemove.length < 3; ci++) {
-        if (ci !== randIdx && isMatchable(state.stackOrbs[ci], chainColor)) chainRemove.push(ci);
-      }
-      if (chainRemove.length >= 3) {
-        chainRemove.sort((a, b) => b - a);
-        for (const ci of chainRemove) {
-          const cc = state.stackOrbs[ci];
-          if (cc === 'dual') {
-            colorCounts['red'] = (colorCounts['red'] || 0) + 1;
-            colorCounts['blue'] = (colorCounts['blue'] || 0) + 1;
-          } else {
-            colorCounts[cc] = (colorCounts[cc] || 0) + 1;
-          }
-          state.stackOrbs.splice(ci, 1);
-        }
-        spawnFloatingText(state.squadX, state.squadY - 60, '连锁闪电!', '#aaddff', 50);
-      }
-    }
-
-    // --- Relic: golden_ratio — if stack had all 3 colors removed, bonus +2 ---
-    if (hasRelic('golden_ratio') && colorCounts['red'] && colorCounts['blue'] && colorCounts['yellow']) {
-      const bonus = 2;
-      for (let b = 0; b < bonus; b++) {
-        if (state.units < MAX_UNITS) {
-          state.units++;
-          state.soldierColors.push(['red','blue','yellow'][b % 3]);
-        }
-      }
-      updateHUD();
-      buildSoldiers();
-      spawnFloatingText(state.squadX, state.squadY - 70, '黄金比例! +2兵', '#ffee44', 60);
-    }
-
-    // --- Award buffs: floor(count/3) per color ---
-    for (const [color, count] of Object.entries(colorCounts)) {
-      const buffs = Math.floor(count / 3);
-      for (let b = 0; b < buffs; b++) applyColorBuff(color);
-    }
-
-    // --- Relic: 海洋之泪 — extra blue soldier per blue match-3 ---
-    if (hasRelic('ocean_tear') && colorCounts['blue']) {
-      const extraBlue = Math.floor(colorCounts['blue'] / 3);
-      for (let b = 0; b < extraBlue; b++) {
-        if (state.units < MAX_UNITS) {
-          state.units++;
-          state.soldierColors.push('blue');
-          updateHUD();
-          buildSoldiers();
-        }
-      }
-    }
-
-    looping = true;
-  }
-}
-
-function applyColorBuff(color) {
-  if (state.units < MAX_UNITS) {
+  for (let i = 0; i < bonus && state.units < MAX_UNITS; i++) {
     state.units++;
     state.soldierColors.push(color);
   }
-  state.activeBuffs.push({ color, label: '+1' });
   updateHUD();
   buildSoldiers();
-  state.gateFlash = { color, timer: 24 };
-  state.screenShake = 6;
-  const label = color === 'red' ? '红' : color === 'yellow' ? '黄' : '蓝';
-  spawnFloatingText(state.squadX, state.squadY - 40, '三消! +1 ' + label + '兵', orbTextColor(color), 55);
+  spawnFloatingText(state.squadX, state.squadY - 50, `+${bonus}`, '#ffffff', 40);
+  spawnColorOrbAt(state.squadX, state.squadY - 20, color);
+}
+
+// ══════════════════════════════════════════════
+//  7-SLOT AUTO-MATCH SYSTEM
+// ══════════════════════════════════════════════
+const COLOR_ORB_R    = 9;
+const COLOR_ORB_LIFE = 600;
+
+function awardColorToken(color) {
+  injectSlot(color);
+}
+
+function slotColorMatches(orbColor, targetColor) {
+  if (orbColor === targetColor) return true;
+  if (orbColor === 'dual' && (targetColor === 'red' || targetColor === 'blue')) return true;
+  return false;
+}
+
+function injectSlot(color) {
+  if (hasRelic('rb_blind') && (color === 'red' || color === 'blue') && chance(0.1)) {
+    color = 'dual';
+  }
+
+  const q = state.slotQueue;
+  if (q.length >= SLOT_COUNT) {
+    q.shift();
+    metrics.overflows++;
+    const sx0 = slotScreenX(0);
+    spawnParticles(sx0, slotBarY(), '#666666', 5);
+    spawnFloatingText(sx0, slotBarY() - 30, '溢出', '#888888', 30);
+  }
+  q.push(color);
+
+  state.slotFlash[q.length - 1] = 14;
+  spawnTokenParticles(color === 'dual' ? 'blue' : color);
+  resolveSlotMatches();
+}
+
+function resolveSlotMatches() {
+  let chainDelay = 0;
+
+  const doPass = () => {
+    const q = state.slotQueue;
+    if (q.length < 3) return false;
+
+    let bestRun = null;
+    for (const tc of COLORS3) {
+      let s = 0;
+      while (s < q.length) {
+        if (slotColorMatches(q[s], tc)) {
+          let e = s + 1;
+          while (e < q.length && slotColorMatches(q[e], tc)) e++;
+          if (e - s >= 3 && (!bestRun || e - s > bestRun.len)) {
+            bestRun = { start: s, len: e - s, color: tc };
+          }
+          s = e;
+        } else { s++; }
+      }
+    }
+
+    if (!bestRun) return false;
+
+    // Relic: dithering — 10% chance to extend run by 1 adjacent
+    if (hasRelic('dithering') && chance(0.1)) {
+      if (bestRun.start > 0) { bestRun.start--; bestRun.len++; }
+      else if (bestRun.start + bestRun.len < q.length) { bestRun.len++; }
+    }
+
+    const matchColor = bestRun.color;
+    const matchCount = bestRun.len;
+    q.splice(bestRun.start, matchCount);
+
+    // Flash remaining slots
+    for (let i = 0; i < q.length; i++) state.slotFlash[i] = 8;
+
+    // Elimination feedback
+    const midIdx = bestRun.start + Math.floor(matchCount / 2);
+    const sx = slotScreenX(Math.min(midIdx, SLOT_COUNT - 1));
+    const sy = slotBarY();
+    const skillLabel = matchColor === 'red' ? '清障!' : matchColor === 'blue' ? '冻结!' : '增援!';
+    spawnFloatingText(sx, sy - 35, skillLabel, orbTextColor(matchColor), 55);
+    spawnParticles(sx, sy, orbTextColor(matchColor), 14);
+    state.screenShake = 8;
+    state.gateFlash = { color: matchColor, timer: 20 };
+
+    metrics.matchTriggered++;
+    triggerSlotSkill(matchColor, matchCount);
+
+    // Relic: desert — yellow match converts 2 non-yellow to yellow
+    if (hasRelic('desert') && matchColor === 'yellow') {
+      const candidates = [];
+      for (let i = 0; i < q.length; i++) { if (q[i] !== 'yellow') candidates.push(i); }
+      for (let t = 0; t < 2 && candidates.length > 0; t++) {
+        const pick = Math.floor(Math.random() * candidates.length);
+        q[candidates[pick]] = 'yellow';
+        state.slotFlash[candidates[pick]] = 12;
+        candidates.splice(pick, 1);
+      }
+    }
+
+    // Relic: chain_light — 20% chance to remove up to 3 extra matching orbs
+    if (hasRelic('chain_light') && chance(0.2) && q.length >= 1) {
+      const toRemove = [];
+      for (let i = 0; i < q.length && toRemove.length < 3; i++) {
+        if (slotColorMatches(q[i], matchColor)) toRemove.push(i);
+      }
+      if (toRemove.length > 0) {
+        for (let i = toRemove.length - 1; i >= 0; i--) q.splice(toRemove[i], 1);
+        spawnFloatingText(sx, sy - 55, '连锁闪电!', '#aaddff', 50);
+      }
+    }
+
+    // Relic: ocean_tear — extra blue soldier
+    if (hasRelic('ocean_tear') && matchColor === 'blue') {
+      if (state.units < MAX_UNITS) {
+        state.units++; state.soldierColors.push('blue');
+        updateHUD(); buildSoldiers();
+        spawnFloatingText(state.squadX, state.squadY - 40, '+1蓝兵', '#66aaff', 45);
+      }
+    }
+
+    // Relic: golden_ratio — check if all 3 colors are now represented in recent matches
+    // (simplified: if queue currently has all 3 colors, bonus)
+    if (hasRelic('golden_ratio')) {
+      const has = {};
+      for (const c of q) { if (c === 'dual') { has.red = has.blue = true; } else has[c] = true; }
+      if (has.red && has.blue && has.yellow) {
+        const bonus = 2;
+        for (let b = 0; b < bonus && state.units < MAX_UNITS; b++) {
+          state.units++; state.soldierColors.push(COLORS3[b % 3]);
+        }
+        updateHUD(); buildSoldiers();
+        spawnFloatingText(state.squadX, state.squadY - 70, '黄金比例! +2兵', '#ffee44', 60);
+      }
+    }
+
+    return true;
+  };
+
+  while (doPass()) { chainDelay++; }
+}
+
+function triggerSlotSkill(color, count) {
+  metrics.skillsFired++;
+  const sd = state.slotSkillDecay;
+  const prev = sd[color] || 0;
+  const decayMul = [1.0, 0.7, 0.5][Math.min(prev, 2)];
+  for (const c of COLORS3) sd[c] = 0;
+  sd[color] = prev + 1;
+
+  if (color === 'red') {
+    if (state.activeWall) {
+      const dmg = Math.round(8 * decayMul);
+      state.activeWall.hp = Math.max(0, state.activeWall.hp - dmg);
+      spawnParticles(W / 2, slotBarY() - 100, '#ff4444', 15);
+      spawnFloatingText(W / 2, state.squadY - 80, `清障 -${dmg}HP`, '#ff6666', 50);
+      if (state.activeWall.hp <= 0) {
+        const ws = wallScreenPos(state.activeWall);
+        spawnParticles(W / 2, ws.top, '#ff6644', 20);
+        spawnParticles(W / 2, ws.top, '#ffcc00', 15);
+        state.activeWall.row.passed = true;
+        state.activeWall = null;
+      }
+    } else {
+      const killCount = Math.round(5 * decayMul);
+      for (let i = 0; i < killCount && state.enemies.length > 0; i++) {
+        const ei = state.enemies.length - 1;
+        const pos = enemyScreenPos(state.enemies[ei]);
+        spawnParticles(pos.x, pos.y, '#ff4444', 8);
+        state.enemies.splice(ei, 1);
+      }
+    }
+  } else if (color === 'blue') {
+    const freezeFrames = Math.round(120 * decayMul);
+    state.freezeTimer = Math.max(state.freezeTimer || 0, freezeFrames);
+    spawnParticles(W / 2, state.squadY - 60, '#66ccff', 12);
+  } else if (color === 'yellow') {
+    const bonus = Math.round(2 * decayMul);
+    for (let i = 0; i < bonus && state.units < MAX_UNITS; i++) {
+      state.units++; state.soldierColors.push('yellow');
+    }
+    updateHUD(); buildSoldiers();
+  }
 }
 
 function spawnTokenParticles(color) {
@@ -692,8 +677,17 @@ function spawnTokenParticles(color) {
 }
 
 function spawnColorOrb(x, y) {
-  const r = Math.random();
-  const color = r < 0.33 ? 'red' : r < 0.66 ? 'blue' : 'yellow';
+  // Color guarantee: bias toward colors that would complete a match-3
+  const q = state.slotQueue;
+  let color;
+  if (q.length >= 2 && chance(0.4)) {
+    const tail = q[q.length - 1];
+    const prev = q[q.length - 2];
+    if (tail === prev && tail !== 'dual') { color = tail; }
+    else { color = randColor(); }
+  } else {
+    color = randColor();
+  }
   spawnColorOrbAt(x, y, color);
 }
 
@@ -813,6 +807,17 @@ function spawnParticles(x, y, color, n = 7) {
 }
 
 // ══════════════════════════════════════════════
+//  SESSION METRICS (for design validation)
+// ══════════════════════════════════════════════
+const metrics = {
+  gateChoices: 0,           // total gate passages
+  matchTriggered: 0,        // total auto-match-3 triggers
+  skillsFired: 0,           // total skill activations
+  gateChosenForColor: 0,    // times player chose lower-bonus side (inferred)
+  overflows: 0,             // slot overflow count
+};
+
+// ══════════════════════════════════════════════
 //  UPDATE
 // ══════════════════════════════════════════════
 let frameCount = 0;
@@ -836,6 +841,8 @@ function update() {
 
   if (state.screenShake > 0) state.screenShake--;
   if (state.hurtFlash > 0) state.hurtFlash--;
+  if (state.freezeTimer > 0) state.freezeTimer--;
+  for (let i = 0; i < SLOT_COUNT; i++) { if (state.slotFlash[i] > 0) state.slotFlash[i]--; }
 
   // Floating texts
   for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
@@ -885,8 +892,7 @@ function updateWorld() {
       state.activeWall = null;
       state.relics = {};
       state.soldierColors = [];
-      state.stackOrbs = [];
-      state.activeBuffs = [];
+      state.slotQueue = [];
       showOverlay('🧱','墙壁未击破！',`第 ${state.level+1} 关失败，火力不足！`,'再来一次', () => startLevel(state.level));
       return;
     }
@@ -997,11 +1003,14 @@ function updateWorld() {
     if (hit) state.bullets.splice(bi, 1);
   }
 
-  // ── Enemy convergence toward squad X ────────
-  const normSqX = (state.squadX - W / 2) / (W * ROAD_WIDTH_BOTTOM / 2);
-  for (const e of state.enemies) {
-    const diff = normSqX * (W * ROAD_WIDTH_BOTTOM / 2) - e.offsetX;
-    if (Math.abs(diff) > 2) e.offsetX += Math.sign(diff) * ENEMY_CONVERGE;
+  // ── Enemy convergence toward squad X (skip if frozen) ──
+  const frozen = state.freezeTimer > 0;
+  if (!frozen) {
+    const normSqX = (state.squadX - W / 2) / (W * ROAD_WIDTH_BOTTOM / 2);
+    for (const e of state.enemies) {
+      const diff = normSqX * (W * ROAD_WIDTH_BOTTOM / 2) - e.offsetX;
+      if (Math.abs(diff) > 2) e.offsetX += Math.sign(diff) * ENEMY_CONVERGE;
+    }
   }
 
   // ── Enemy vs Squad collision ───────────────
@@ -1205,7 +1214,7 @@ function draw() {
 
   drawParticles();
   drawSquad();
-  drawBottomStackZone();
+  drawSlotBar();
   drawGateFlash();
   drawFloatingTexts();
 
@@ -1712,24 +1721,38 @@ function drawGatePanel(side, x1, x2, y1, y2, scale) {
   ctx.fillRect(x1 + 1, y1, postW * 0.4, h);
   ctx.fillRect(x2 - postW + 1, y1, postW * 0.4, h);
 
-  // Orb icon in center
-  const orbR = Math.max(10, 20 * scale);
+  // Bonus number (top area)
+  const bonusText = '+' + (side.bonus || 1);
+  const fontSize = Math.max(10, Math.round(22 * scale));
+  ctx.font = `900 ${fontSize}px "Segoe UI", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(bonusText, cx, cy - h * 0.18);
+  ctx.shadowBlur = 0;
+
+  // Color orb icon (bottom area, smaller)
+  const orbR = Math.max(6, 13 * scale);
+  const orbCy = cy + h * 0.2;
   ctx.shadowColor = palette.orbGlow;
-  ctx.shadowBlur = 16 * scale;
+  ctx.shadowBlur = 10 * scale;
   ctx.fillStyle = palette.orbRim;
   ctx.beginPath();
-  ctx.arc(cx, cy, orbR + 3 * scale, 0, Math.PI * 2);
+  ctx.arc(cx, orbCy, orbR + 2 * scale, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = palette.orb;
   ctx.beginPath();
-  ctx.arc(cx, cy, orbR, 0, Math.PI * 2);
+  ctx.arc(cx, orbCy, orbR, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
-  // Orb highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.beginPath();
-  ctx.arc(cx - orbR * 0.3, cy - orbR * 0.3, orbR * 0.35, 0, Math.PI * 2);
+  ctx.arc(cx - orbR * 0.3, orbCy - orbR * 0.3, orbR * 0.35, 0, Math.PI * 2);
   ctx.fill();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 }
 
 // ── Enemies ─────────────────────────────────
@@ -1740,6 +1763,14 @@ function drawEnemies() {
   withPos.sort((a, b) => a.pos.y - b.pos.y);
   for (const { e, pos } of withPos) {
     drawEnemyFigure(pos.x, pos.y, pos.scale, e.flashTimer > 0);
+    if (state.freezeTimer > 0) {
+      ctx.globalAlpha = Math.min(0.45, state.freezeTimer / 60);
+      ctx.fillStyle = '#88ccff';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, ENEMY_R * pos.scale * 1.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
 
   // Enemy count badge above the group center
@@ -2023,186 +2054,106 @@ function drawColorOrbs() {
 }
 
 // ── Bottom stack zone (below squad) ──────────
-function drawBottomStackZone() {
-  if (state.stackOrbs.length === 0) return;
+function drawSlotBar() {
+  const totalW = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP;
+  const startX = (W - totalW) / 2;
+  const cy = slotBarY();
+  const halfS = SLOT_SIZE / 2;
 
-  const stackH = getStackHeightPx();
-  const cappedH = Math.min(stackH, H * STACK_MAX_HEIGHT_FRAC);
-  const zoneTop = H - cappedH;
-
-  const stackW = ROAD_WIDTH_BOTTOM * W / 1.25;
-  const stackL = W / 2 - stackW / 2;
-  const stackR = W / 2 + stackW / 2;
-
-  // Dark background
-  const zoneGrad = ctx.createLinearGradient(0, zoneTop - 12, 0, H);
-  zoneGrad.addColorStop(0, 'rgba(10,10,30,0)');
-  zoneGrad.addColorStop(0.08, 'rgba(10,10,30,0.6)');
-  zoneGrad.addColorStop(1, 'rgba(10,10,30,0.82)');
-  ctx.fillStyle = zoneGrad;
-  ctx.fillRect(stackL - 6, zoneTop - 12, stackW + 12, cappedH + 12);
-
-  // Top divider
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(stackL, zoneTop);
-  ctx.lineTo(stackR, zoneTop);
-  ctx.stroke();
-
-  // Draw stacked orbs
-  const orbsPerRow = getStackOrbsPerRow();
-  const orbDiam = STACK_ORB_R * 2 + STACK_ORB_GAP;
-  const rowWidth = orbsPerRow * orbDiam;
-  const startX = W / 2 - rowWidth / 2 + STACK_ORB_R + STACK_ORB_GAP / 2;
-
-  for (let i = 0; i < state.stackOrbs.length; i++) {
-    const col = i % orbsPerRow;
-    const row = Math.floor(i / orbsPerRow);
-    const orbX = startX + col * orbDiam;
-    const orbY = H - STACK_ORB_R - STACK_ORB_GAP - row * orbDiam;
-
-    if (orbY < zoneTop - STACK_ORB_R) continue;
-
-    const color = state.stackOrbs[i];
-    const isDual = color === 'dual';
-    const shadowC = isDual ? '#aa44ff' : color === 'red' ? '#ff0000' : color === 'yellow' ? '#ff9900' : '#0066ff';
-    const rimC    = isDual ? '#ddaaff' : color === 'red' ? '#ffaaaa' : color === 'yellow' ? '#ffee88' : '#aaccff';
-    const coreC   = isDual ? '#8844cc' : color === 'red' ? '#ff4444' : color === 'yellow' ? '#ffcc00' : '#4488ff';
-
-    // Near-match glow (2 consecutive matchable color, horizontal or vertical)
-    let nearMatch = false;
-    if (i > 0 && isMatchable(state.stackOrbs[i - 1], color)) nearMatch = true;
-    if (i < state.stackOrbs.length - 1 && isMatchable(state.stackOrbs[i + 1], color)) nearMatch = true;
-    if (i >= orbsPerRow && isMatchable(state.stackOrbs[i - orbsPerRow], color)) nearMatch = true;
-    if (i + orbsPerRow < state.stackOrbs.length && isMatchable(state.stackOrbs[i + orbsPerRow], color)) nearMatch = true;
-
-    ctx.shadowColor = shadowC;
-    ctx.shadowBlur = nearMatch ? 18 : 5;
-
-    // Outer rim
-    ctx.fillStyle = rimC;
-    ctx.beginPath();
-    ctx.arc(orbX, orbY, STACK_ORB_R + 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (isDual) {
-      // Split red/blue halves for dual orb
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.fillStyle = '#ff4444';
-      ctx.fillRect(orbX - STACK_ORB_R, orbY - STACK_ORB_R, STACK_ORB_R, STACK_ORB_R * 2);
-      ctx.fillStyle = '#4488ff';
-      ctx.fillRect(orbX, orbY - STACK_ORB_R, STACK_ORB_R, STACK_ORB_R * 2);
-      ctx.restore();
-    } else {
-      ctx.fillStyle = coreC;
-      ctx.beginPath();
-      ctx.arc(orbX, orbY, STACK_ORB_R, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Shine
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.beginPath();
-    ctx.arc(orbX - STACK_ORB_R * 0.3, orbY - STACK_ORB_R * 0.3, STACK_ORB_R * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.shadowBlur = 0;
-
-  // Stack count label
-  ctx.font = '700 12px "Segoe UI", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText(`堆栈 ${state.stackOrbs.length}`, W / 2, zoneTop - 2);
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
-
-// ── Color Combo HUD (bottom-right) ───────────
-function drawColorComboHUD() {
-  const PAD     = 14;
-  const BUFF_R  = 12;
-  const BUFF_GAP = 6;
-
-  const buffCount = state.activeBuffs.length;
-  if (buffCount === 0) return;
-
-  const step = BUFF_R * 2 + BUFF_GAP;
-  const panelW = PAD * 2 + Math.min(buffCount, 5) * step;
-  const rows = Math.ceil(buffCount / 5);
-  const panelH = PAD + 16 + rows * step + PAD;
-
-  const px = W - panelW - 12;
-  const py = 44;
-
-  // Panel background
-  ctx.globalAlpha = 0.82;
+  // Bar background
+  ctx.globalAlpha = 0.75;
   ctx.fillStyle = 'rgba(10, 14, 30, 0.88)';
-  roundRect(px, py, panelW, panelH, 12);
+  roundRect(startX - 10, cy - halfS - 10, totalW + 20, SLOT_SIZE + 20, 14);
   ctx.fill();
-
-  ctx.globalAlpha = 0.5;
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 1;
-  roundRect(px, py, panelW, panelH, 12);
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1.5;
+  roundRect(startX - 10, cy - halfS - 10, totalW + 20, SLOT_SIZE + 20, 14);
   ctx.stroke();
-
   ctx.globalAlpha = 1;
 
-  // Title
-  ctx.font = '700 11px "Segoe UI", sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText('三消加成', px + PAD, py + PAD - 2);
+  const q = state.slotQueue;
 
-  // Buff orbs
-  const startY = py + PAD + 16 + BUFF_R;
-  for (let i = 0; i < buffCount; i++) {
-    const buff  = state.activeBuffs[i];
-    const core  = buff.color === 'red' ? '#ff4444' : buff.color === 'yellow' ? '#ffcc00' : '#4488ff';
-    const glow  = buff.color === 'red' ? '#ff0000' : buff.color === 'yellow' ? '#ff9900' : '#0055ff';
-    const rim   = buff.color === 'red' ? '#ffaaaa' : buff.color === 'yellow' ? '#ffee88' : '#aaccff';
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const cx = startX + i * (SLOT_SIZE + SLOT_GAP) + halfS;
+    const color = i < q.length ? q[i] : null;
+    const flashing = state.slotFlash[i] > 0;
 
-    const col = i % 5;
-    const row = Math.floor(i / 5);
-    const bx  = px + PAD + BUFF_R + col * step;
-    const by  = startY + row * step;
+    if (color) {
+      const isDual = color === 'dual';
+      const coreC = isDual ? '#8844cc' : color === 'red' ? '#ff4444' : color === 'yellow' ? '#ffcc00' : '#4488ff';
+      const glowC = isDual ? '#aa44ff' : color === 'red' ? '#ff0000' : color === 'yellow' ? '#ff9900' : '#0066ff';
+      const rimC  = isDual ? '#ddaaff' : color === 'red' ? '#ffaaaa' : color === 'yellow' ? '#ffee88' : '#aaccff';
 
-    ctx.shadowColor = glow;
-    ctx.shadowBlur  = 14;
-    ctx.fillStyle = rim;
-    ctx.beginPath();
-    ctx.arc(bx, by, BUFF_R + 2, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.shadowColor = glowC;
+      ctx.shadowBlur = flashing ? 24 : 8;
 
-    ctx.fillStyle = core;
-    ctx.beginPath();
-    ctx.arc(bx, by, BUFF_R, 0, Math.PI * 2);
-    ctx.fill();
+      // Rim
+      ctx.fillStyle = rimC;
+      roundRect(cx - halfS, cy - halfS, SLOT_SIZE, SLOT_SIZE, 8);
+      ctx.fill();
 
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.beginPath();
-    ctx.arc(bx - BUFF_R * 0.3, by - BUFF_R * 0.3, BUFF_R * 0.35, 0, Math.PI * 2);
-    ctx.fill();
+      // Core (or dual split)
+      if (isDual) {
+        ctx.save();
+        roundRect(cx - halfS + 2, cy - halfS + 2, SLOT_SIZE - 4, SLOT_SIZE - 4, 6);
+        ctx.clip();
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(cx - halfS, cy - halfS, halfS, SLOT_SIZE);
+        ctx.fillStyle = '#4488ff';
+        ctx.fillRect(cx, cy - halfS, halfS, SLOT_SIZE);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = coreC;
+        roundRect(cx - halfS + 2, cy - halfS + 2, SLOT_SIZE - 4, SLOT_SIZE - 4, 6);
+        ctx.fill();
+      }
 
-    // Buff label
-    ctx.font = '800 10px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(buff.label, bx, by);
+      // Near-match glow indicator (2 consecutive same color)
+      let nearMatch = false;
+      if (i > 0 && i - 1 < q.length && isMatchable(q[i - 1], color)) nearMatch = true;
+      if (i + 1 < q.length && isMatchable(q[i + 1], color)) nearMatch = true;
+      if (nearMatch) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 0;
+        roundRect(cx - halfS + 1, cy - halfS + 1, SLOT_SIZE - 2, SLOT_SIZE - 2, 8);
+        ctx.stroke();
+      }
+
+      // Shine
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(cx - halfS * 0.3, cy - halfS * 0.3, halfS * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else {
+      // Empty slot
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      roundRect(cx - halfS, cy - halfS, SLOT_SIZE, SLOT_SIZE, 8);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1;
+      roundRect(cx - halfS, cy - halfS, SLOT_SIZE, SLOT_SIZE, 8);
+      ctx.stroke();
+    }
   }
+
   ctx.shadowBlur = 0;
+
+  // Direction arrow indicator (right = newest)
+  ctx.font = '700 10px "Segoe UI", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText('◂旧', startX - 14, cy);
   ctx.textAlign = 'left';
+  ctx.fillText('新▸', startX + totalW + 14, cy);
   ctx.textBaseline = 'alphabetic';
 }
+
+
 
 // Helper: draw a rounded rectangle path
 function roundRect(x, y, w, h, r) {
