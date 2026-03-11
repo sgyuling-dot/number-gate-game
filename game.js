@@ -52,7 +52,7 @@ const RELIC_DEFS = {
   color_storm:  { name: '色彩风暴',   desc: '红/蓝球20%变为双色球',             icon: '🔮' },
   greedy_hand:  { name: '贪婪之手',   desc: '过门额外产出1个同色球',             icon: '🤲' },
   purify:       { name: '净化之光',   desc: '满格无消除时自动清除最左1格',       icon: '✨' },
-  chain_react:  { name: '连锁反应',   desc: '消除后25%变1球为消除色',           icon: '⚡' },
+  chain_react:  { name: '连锁反应',   desc: '三消后25%概率将槽中随机1球变为相同颜色', icon: '⚡' },
   // ── 战斗增益 ──
   armor_pierce: { name: '穿甲弹',     desc: '子弹伤害+1，敌人一击必杀',         icon: '🔫' },
   mag_shield:   { name: '磁力护盾',   desc: '吸球+80%，20%格挡伤害',           icon: '🧲' },
@@ -533,7 +533,7 @@ function applyGate(side) {
   metrics.gateChoices++;
   state.gateFlash = { color, timer: 18 };
   const GATE_ORB_IMMUNE = 60;
-  const baseCount = Math.round(4 * state.waveHpMul);
+  const baseCount = Math.round(2 * state.waveHpMul);
   for (let i = 0; i < baseCount; i++) {
     const ox = (Math.random() - 0.5) * 50;
     const oy = -15 - Math.random() * 25;
@@ -1104,7 +1104,7 @@ function updateWorld() {
         e.hp = (e.hp || 1) - bulletDmg;
         e.flashTimer = 6;
         spawnParticles(pos.x, pos.y, '#ff6b35', 4);
-        const dropRate = hasRelic('speed_shot') ? 0.18 : 0.10;
+        const dropRate = hasRelic('speed_shot') ? 0.28 : 0.15;
 
         if (e.hp <= 0) {
           spawnParticles(pos.x, pos.y, '#ffcc44', 4);
@@ -1356,7 +1356,7 @@ function fireLaser(x, y, dirX, dirY) {
 
   const LASER_HALF_W = hasRelic('overcharge') ? 27 : 18;
   const laserDmg = hasRelic('overcharge') ? 4 : 2;
-  const dropRate = hasRelic('speed_shot') ? 0.18 : 0.10;
+  const dropRate = hasRelic('speed_shot') ? 0.28 : 0.15;
   let refractTarget = null;
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
     const e = state.enemies[ei];
