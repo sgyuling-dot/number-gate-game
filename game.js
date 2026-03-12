@@ -1161,8 +1161,10 @@ function updateWorld(ts) {
         if (e.hp <= 0) {
           spawnParticles(pos.x, pos.y, '#ffcc44', 4);
           spawnParticles(pos.x, pos.y, '#ffffff', 2);
-          if (state.comboMode && Math.random() < dropRate) {
-            spawnColorOrb(pos.x, pos.y);
+          if (Math.random() < dropRate) {
+            const orbX = state.squadX + (Math.random() - 0.5) * 40;
+            const orbY = state.squadY - 30 - Math.random() * 20;
+            spawnColorOrb(orbX, orbY);
             spawnFloatingText(pos.x, pos.y - 25, '+ Orb!', '#ffee66', 40);
           }
           state.enemies.splice(ei, 1);
@@ -1215,8 +1217,8 @@ function updateWorld(ts) {
               ae.flashTimer = 6;
               spawnParticles(ap.x, ap.y, '#ff6b35', 5);
               if (ae.hp <= 0) {
-                if (state.comboMode && Math.random() < dropRate) {
-                  spawnColorOrb(ap.x, ap.y);
+                if (Math.random() < dropRate) {
+                  spawnColorOrb(state.squadX + (Math.random()-0.5)*40, state.squadY - 30 - Math.random()*20);
                 }
                 if (chainExplode) chainExplode.push({x: ap.x, y: ap.y});
                 state.enemies.splice(aei, 1);
@@ -1237,7 +1239,7 @@ function updateWorld(ts) {
                   ae2.flashTimer = 6;
                   if (ae2.hp <= 0) {
                     spawnParticles(ap2.x, ap2.y, '#ff6b35', 4);
-                    if (state.comboMode && Math.random() < dropRate) spawnColorOrb(ap2.x, ap2.y);
+                    if (Math.random() < dropRate) spawnColorOrb(state.squadX + (Math.random()-0.5)*40, state.squadY - 30 - Math.random()*20);
                     state.enemies.splice(aei2, 1);
                   }
                 }
@@ -1435,8 +1437,8 @@ function fireLaser(x, y, dirX, dirY) {
       spawnParticles(pos.x, pos.y, '#66ccff', 4);
       if (e.hp <= 0) {
         spawnParticles(pos.x, pos.y, '#88ddff', 6);
-        if (state.comboMode && Math.random() < dropRate) {
-          spawnColorOrb(pos.x, pos.y);
+        if (Math.random() < dropRate) {
+          spawnColorOrb(state.squadX + (Math.random()-0.5)*40, state.squadY - 30 - Math.random()*20);
         }
         state.enemies.splice(ei, 1);
       } else if (!refractTarget) {
