@@ -1030,9 +1030,7 @@ function updateWorld(ts) {
     const distAhead = row.scrollPos - state.scrollY;
 
     if (row.type === 'gate') {
-      const gateT = perspT(distAhead);
-      const gateSY = ROAD_HORIZON * H + gateT * (roadBottomY() - ROAD_HORIZON * H);
-      if (gateSY >= state.squadY && !row.passed) {
+      if (distAhead <= GATE_PASS_ZONE && !row.passed) {
         row.passed = true;
         const side = state.squadX < W / 2 ? row.left : row.right;
         applyGate(side);
@@ -1543,20 +1541,20 @@ function fireSoldier(sol) {
 
   if (trait.laserChance > 0 && Math.random() < trait.laserChance) {
     fireLaser(sx, sy - UNIT_R * scale, dx / len, dy / len);
-  }
+  } else {
+    state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
+      explodeChance: trait.explodeChance, splitChance: 0 });
 
-  state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
-    explodeChance: trait.explodeChance, splitChance: 0 });
-
-  if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
-    const splitAngles = hasRelic('barrage')
-      ? [-0.35, -0.23, -0.12, 0.12, 0.23, 0.35]
-      : [-0.25, -0.08, 0.08, 0.25];
-    for (const a of splitAngles) {
-      const ca = Math.cos(a), sa = Math.sin(a);
-      state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
-        vx: bvx * ca - bvy * sa, vy: bvx * sa + bvy * ca,
-        explodeChance: 0, splitChance: 0 });
+    if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
+      const splitAngles = hasRelic('barrage')
+        ? [-0.35, -0.23, -0.12, 0.12, 0.23, 0.35]
+        : [-0.25, -0.08, 0.08, 0.25];
+      for (const a of splitAngles) {
+        const ca = Math.cos(a), sa = Math.sin(a);
+        state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
+          vx: bvx * ca - bvy * sa, vy: bvx * sa + bvy * ca,
+          explodeChance: 0, splitChance: 0 });
+      }
     }
   }
 }
