@@ -2302,11 +2302,18 @@ function drawSoldierFigure(x, y, scale, color, trait, shotTimer) {
   ctx.shadowColor = pal.shadow;
   ctx.shadowBlur = 8;
 
+  const isWhite = color === 'white';
+
   // Body
   ctx.fillStyle = pal.body;
   ctx.beginPath();
   ctx.ellipse(x, y + br * 0.3, br * 0.65, br * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
+  if (isWhite) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   // Body highlight
   ctx.fillStyle = pal.highlight;
@@ -2319,12 +2326,22 @@ function drawSoldierFigure(x, y, scale, color, trait, shotTimer) {
   ctx.beginPath();
   ctx.arc(x, y - br * 0.6, hr, 0, Math.PI * 2);
   ctx.fill();
+  if (isWhite) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   // Helmet
   ctx.fillStyle = pal.helmet;
   ctx.beginPath();
   ctx.ellipse(x, y - br * 0.6 - hr * 0.3, hr * 0.95, hr * 0.58, 0, Math.PI, Math.PI * 2);
   ctx.fill();
+  if (isWhite) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   // Helmet shine
   ctx.fillStyle = pal.shine;
