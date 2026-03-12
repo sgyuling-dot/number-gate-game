@@ -43,36 +43,33 @@ comboModeCheckbox.addEventListener('change', () => {
 //  RELIC SYSTEM
 // ══════════════════════════════════════════════
 const RELIC_DEFS = {
-  // ── Unit Enhancement ──
-  red_core:     { name: 'Inferno Core',    desc: 'Giant size x3, explode chance 20%',          icon: '🌋' },
-  prism:        { name: 'Prism Refract',    desc: 'Laser 20% chance to refract to 2nd enemy',  icon: '💎' },
-  barrage:      { name: 'Barrage Storm',    desc: 'Split chance 25%, 7 trajectories',           icon: '🌪️' },
-  elite:        { name: 'Elite Draft',      desc: 'Match-3 spawns double units',                icon: '👑' },
-  // ── Slot Control ──
-  color_storm:  { name: 'Color Storm',      desc: 'Red/Blue orbs 20% become dual-color',        icon: '🔮' },
-  greedy_hand:  { name: 'Greedy Hand',      desc: 'Gates produce extra orbs',                    icon: '🤲' },
-  purify:       { name: 'Purify',           desc: 'Auto-clear leftmost slot when full',          icon: '✨' },
-  chain_react:  { name: 'Chain Reaction',   desc: '25% to convert a random orb to matched color',icon: '⚡' },
-  // ── Combat Boost ──
-  armor_pierce: { name: 'Armor Pierce',     desc: 'Bullet damage +1, one-shot kills',           icon: '🔫' },
-  mag_shield:   { name: 'Mag Shield',       desc: 'Collect range +80%, 20% block damage',       icon: '🧲' },
-  speed_shot:   { name: 'Rapid Fire',       desc: 'Fire rate +30%, drop rate up to 28%',        icon: '🔥' },
-  undying:      { name: 'Phoenix',          desc: 'Revive once per level (5 units + freeze)',    icon: '🔱' },
-  // ── Unit Enhancement II ──
-  inferno:      { name: 'Inferno Ember',    desc: 'Explosion kills trigger chain explosions',    icon: '💥' },
-  overcharge:   { name: 'Overcharge Lens',  desc: 'Laser damage x2 (2->4), width +50%',         icon: '🔭' },
-  ricochet:     { name: 'Ricochet',         desc: 'Bullets bounce to nearest enemy on kill',     icon: '🎯' },
-  veteran:      { name: 'Veteran',          desc: 'Unit cap +10 (20->30)',                       icon: '🎖️' },
-  // ── Slot Control II ──
-  wild_card:    { name: 'Wild Card',        desc: 'Kill drops 30% chance to become dual-color',  icon: '🃏' },
-  echo:         { name: 'Echo',             desc: '30% extra orb injection after match-3',       icon: '🔔' },
-  time_warp:    { name: 'Time Warp',        desc: 'Freeze duration doubled',                     icon: '⏳' },
-  gold_rush:    { name: 'Gold Rush',        desc: 'Yellow orbs 30% chance to inject extra yellow',icon: '⛏️' },
-  // ── Combat Boost II ──
-  sniper:       { name: 'Sniper Protocol',  desc: 'Bullet speed +60%, range +50%',               icon: '🎯' },
-  thorns:       { name: 'Thorns',           desc: 'Reflect 3 damage to nearby enemies when hit', icon: '🌿' },
-  heal_pulse:   { name: 'Heal Pulse',       desc: 'Restore 1 unit on every match-3',             icon: '💚' },
-  berserker:    { name: 'Berserker',        desc: 'Attack speed scales up as units decrease',    icon: '⚔️' },
+  // ═══ A — Match Ease (7) ═══
+  color_storm:  { name: 'Color Storm',      desc: 'Red/Blue orbs 20% become dual-color',           cat: 'A', icon: '🔮' },
+  greedy_hand:  { name: 'Greedy Hand',      desc: 'Gates produce extra orbs',                      cat: 'A', icon: '🤲' },
+  purify:       { name: 'Purify',           desc: 'Auto-clear leftmost slot when full',             cat: 'A', icon: '✨' },
+  chain_react:  { name: 'Chain Reaction',   desc: '25% to convert a random orb to matched color',  cat: 'A', icon: '⚡' },
+  wild_card:    { name: 'Wild Card',        desc: 'Kill drops 30% chance to become dual-color',     cat: 'A', icon: '🃏' },
+  echo:         { name: 'Echo',             desc: '30% extra orb injection after match-3',          cat: 'A', icon: '🔔' },
+  gold_rush:    { name: 'Gold Rush',        desc: 'Yellow orbs 30% chance to inject extra yellow',  cat: 'A', icon: '⛏️' },
+  // ═══ B — Weapon Boost (14) ═══
+  red_core:     { name: 'Inferno Core',     desc: 'Giant size x3, explode chance 20%',             cat: 'B', icon: '🌋' },
+  prism:        { name: 'Prism Refract',    desc: 'Laser 20% chance to refract to 2nd enemy',      cat: 'B', icon: '💎' },
+  barrage:      { name: 'Barrage Storm',    desc: 'Split chance 25%, 7 trajectories',               cat: 'B', icon: '🌪️' },
+  armor_pierce: { name: 'Armor Pierce',     desc: 'Bullet damage +1, one-shot kills',               cat: 'B', icon: '🔫' },
+  speed_shot:   { name: 'Rapid Fire',       desc: 'Fire rate +30%, drop rate up to 28%',            cat: 'B', icon: '🔥' },
+  overcharge:   { name: 'Overcharge Lens',  desc: 'Laser damage x2 (2->4), width +50%',             cat: 'B', icon: '🔭' },
+  ricochet:     { name: 'Ricochet',         desc: 'Bullets bounce to nearest enemy on kill',         cat: 'B', icon: '🎯' },
+  sniper:       { name: 'Sniper Protocol',  desc: 'Bullet speed +60%, range +50%',                  cat: 'B', icon: '🔫' },
+  inferno:      { name: 'Inferno Ember',    desc: 'Explosion kills trigger chain explosions',        cat: 'B', icon: '💥' },
+  thorns:       { name: 'Thorns',           desc: 'Reflect 3 damage to nearby enemies when hit',    cat: 'B', icon: '🌿' },
+  berserker:    { name: 'Berserker',        desc: 'Attack speed scales up as units decrease',        cat: 'B', icon: '⚔️' },
+  time_warp:    { name: 'Time Warp',        desc: 'Freeze duration doubled',                         cat: 'B', icon: '⏳' },
+  homing_bolt:  { name: 'Homing Bolt',      desc: 'Bullets slightly track nearest enemy',            cat: 'B', icon: '🧭' },
+  shrapnel:     { name: 'Shrapnel',         desc: 'Bullets split into 3 fragments on hit',           cat: 'B', icon: '💣' },
+  // ═══ C — Soldier Base (3) ═══
+  elite:        { name: 'Elite Draft',      desc: 'Match-3 spawns double units',                     cat: 'C', icon: '👑' },
+  veteran:      { name: 'Veteran',          desc: 'Unit cap +10 (20->30)',                           cat: 'C', icon: '🎖️' },
+  undying:      { name: 'Phoenix',          desc: 'Revive once per level (5 units + freeze)',        cat: 'C', icon: '🔱' },
 };
 const RELIC_IDS = Object.keys(RELIC_DEFS);
 function chance(p) { return Math.random() < p; }
@@ -502,7 +499,9 @@ function showRelicChoice(choices, level) {
     const def = RELIC_DEFS[relicId];
     const btn = document.createElement('button');
     btn.className = 'relic-choice-btn';
-    btn.innerHTML = `<span style="font-size:22px;margin-right:8px;">${def.icon}</span><strong>${def.name}</strong><br><span style="font-size:12px;opacity:0.7;">${def.desc}</span>`;
+    const catLabel = def.cat === 'A' ? 'Match' : def.cat === 'B' ? 'Weapon' : 'Soldier';
+    const catColor = def.cat === 'A' ? '#66dd99' : def.cat === 'B' ? '#ff7766' : '#66aaff';
+    btn.innerHTML = `<span style="font-size:22px;margin-right:8px;">${def.icon}</span><strong>${def.name}</strong> <span style="font-size:10px;padding:2px 6px;border-radius:6px;background:${catColor};color:#000;font-weight:bold;">${catLabel}</span><br><span style="font-size:12px;opacity:0.7;">${def.desc}</span>`;
     btn.style.cssText = `
       background: linear-gradient(135deg, #2a3a5e, #1a2a48);
       color: #fff; border: 1px solid rgba(255,255,255,0.2);
@@ -915,42 +914,42 @@ const metrics = {
 // ══════════════════════════════════════════════
 let frameCount = 0;
 
-function update() {
+function update(ts) {
   if (state.phase === 'dead' || state.phase === 'win') return;
-  frameCount++;
+  frameCount += ts;
 
   // Particles
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
-    p.x += p.vx; p.y += p.vy; p.vy += 0.08;
-    p.life -= 0.035;
+    p.x += p.vx * ts; p.y += p.vy * ts; p.vy += 0.08 * ts;
+    p.life -= 0.035 * ts;
     if (p.life <= 0) state.particles.splice(i, 1);
   }
 
   if (state.gateFlash) {
-    state.gateFlash.timer--;
+    state.gateFlash.timer -= ts;
     if (state.gateFlash.timer <= 0) state.gateFlash = null;
   }
 
-  if (state.screenShake > 0) state.screenShake--;
-  if (state.hurtFlash > 0) state.hurtFlash--;
-  if (state.freezeTimer > 0) state.freezeTimer--;
-  for (let i = 0; i < SLOT_COUNT; i++) { if (state.slotFlash[i] > 0) state.slotFlash[i]--; }
+  if (state.screenShake > 0) state.screenShake = Math.max(0, state.screenShake - ts);
+  if (state.hurtFlash > 0) state.hurtFlash = Math.max(0, state.hurtFlash - ts);
+  if (state.freezeTimer > 0) state.freezeTimer = Math.max(0, state.freezeTimer - ts);
+  for (let i = 0; i < SLOT_COUNT; i++) { if (state.slotFlash[i] > 0) state.slotFlash[i] = Math.max(0, state.slotFlash[i] - ts); }
   for (let i = state.lasers.length - 1; i >= 0; i--) {
-    state.lasers[i].life--;
+    state.lasers[i].life -= ts;
     if (state.lasers[i].life <= 0) state.lasers.splice(i, 1);
   }
-  for (const e of state.enemies) { if (e.flashTimer > 0) e.flashTimer--; }
+  for (const e of state.enemies) { if (e.flashTimer > 0) e.flashTimer = Math.max(0, e.flashTimer - ts); }
 
   // Floating texts
   for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
     const ft = state.floatingTexts[i];
-    ft.y -= 1.2;
-    ft.life--;
+    ft.y -= 1.2 * ts;
+    ft.life -= ts;
     if (ft.life <= 0) state.floatingTexts.splice(i, 1);
   }
 
-  updateWorld();
+  updateWorld(ts);
 }
 
 // ── Wall screen position helper ─────────────
@@ -976,15 +975,15 @@ function wallScreenPos(wall) {
 }
 
 // ── Single unified world update ─────────────
-function updateWorld() {
+function updateWorld(ts) {
   // Clamp squadY if stack pushed the boundary up
   state.squadY = Math.min(state.squadY, getEffectiveSquadY());
 
   // Pause scrolling while a wall is active; otherwise scroll
   if (!state.activeWall) {
-    state.scrollY += SCROLL_SPEED;
+    state.scrollY += SCROLL_SPEED * ts;
   } else {
-    state.activeWall.timer--;
+    state.activeWall.timer -= ts;
     if (state.activeWall.timer <= 0) {
       state.phase = 'dead';
       state.activeWall = null;
@@ -1035,24 +1034,43 @@ function updateWorld() {
     }
   }
 
-  // ── Shooting ──────────────────────────────
-  state.shootTimer++;
-  let effectiveShootInterval = hasRelic('speed_shot') ? Math.round(SHOOT_INTERVAL * 0.70) : SHOOT_INTERVAL;
+  // ── Shooting (accumulator pattern) ────────
+  state.shootTimer += ts;
+  let effectiveShootInterval = hasRelic('speed_shot') ? SHOOT_INTERVAL * 0.70 : SHOOT_INTERVAL;
   if (hasRelic('berserker')) {
     const maxU = getMaxUnits();
     const ratio = Math.max(0.5, state.units / maxU);
-    effectiveShootInterval = Math.max(4, Math.round(effectiveShootInterval * ratio));
+    effectiveShootInterval = Math.max(4, effectiveShootInterval * ratio);
   }
   const hasTargets = state.enemies.length > 0 || state.activeWall;
   if (state.shootTimer >= effectiveShootInterval && hasTargets) {
-    state.shootTimer = 0;
+    state.shootTimer -= effectiveShootInterval;
     fireFromSquad();
   }
 
   // ── Move bullets ──────────────────────────
+  const doHoming = hasRelic('homing_bolt') && state.enemies.length > 0;
   for (let i = state.bullets.length - 1; i >= 0; i--) {
     const b = state.bullets[i];
-    b.x += b.vx; b.y += b.vy;
+    if (doHoming) {
+      let nearE = null, nearD = Infinity;
+      for (const e of state.enemies) {
+        const ep = enemyScreenPos(e);
+        const d = (ep.x - b.x) ** 2 + (ep.y - b.y) ** 2;
+        if (d < nearD) { nearD = d; nearE = ep; }
+      }
+      if (nearE) {
+        const dx = nearE.x - b.x, dy = nearE.y - b.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const steer = 0.08 * ts;
+        b.vx += (dx / len) * steer * BULLET_SPEED;
+        b.vy += (dy / len) * steer * BULLET_SPEED;
+        const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        const maxSpd = hasRelic('sniper') ? BULLET_SPEED * 1.6 : BULLET_SPEED;
+        if (spd > maxSpd) { b.vx = b.vx / spd * maxSpd; b.vy = b.vy / spd * maxSpd; }
+      }
+    }
+    b.x += b.vx * ts; b.y += b.vy * ts;
     const bulletOOB = hasRelic('sniper') ? (H * ROAD_HORIZON - 50) : (H * ROAD_HORIZON - 20);
     if (b.y < bulletOOB || b.x < -30 || b.x > W + 30) {
       state.bullets.splice(i, 1);
@@ -1135,6 +1153,18 @@ function updateWorld() {
         }
         hit = true;
 
+        if (hasRelic('shrapnel') && !(b.isFragment)) {
+          const fragAngles = [-0.6, 0, 0.6];
+          for (const a of fragAngles) {
+            const fSpd = BULLET_SPEED * 0.7;
+            const baseAngle = Math.atan2(b.vy, b.vx) + a;
+            state.bullets.push({ x: pos.x, y: pos.y,
+              vx: Math.cos(baseAngle) * fSpd, vy: Math.sin(baseAngle) * fSpd,
+              explodeChance: 0, splitChance: 0, isFragment: true });
+          }
+          spawnParticles(pos.x, pos.y, '#ffaa44', 6);
+        }
+
         if ((b.explodeChance || 0) > 0 && Math.random() < b.explodeChance) {
           const AOE_R = 60;
           spawnParticles(pos.x, pos.y, '#ff4400', 18);
@@ -1194,7 +1224,7 @@ function updateWorld() {
     const normSqX = (state.squadX - W / 2) / (W * ROAD_WIDTH_BOTTOM / 2);
     for (const e of state.enemies) {
       const diff = normSqX * (W * ROAD_WIDTH_BOTTOM / 2) - e.offsetX;
-      if (Math.abs(diff) > 2) e.offsetX += Math.sign(diff) * ENEMY_CONVERGE;
+      if (Math.abs(diff) > 2) e.offsetX += Math.sign(diff) * ENEMY_CONVERGE * ts;
     }
   }
 
@@ -1283,11 +1313,11 @@ function updateWorld() {
 
     for (let oi = state.colorOrbs.length - 1; oi >= 0; oi--) {
       const orb = state.colorOrbs[oi];
-      orb.x  += orb.vx;
-      orb.y  += orb.vy;
-      orb.vy += 0.025;  // slower gravity
-      orb.life--;
-      if (orb.immune > 0) orb.immune--;
+      orb.x  += orb.vx * ts;
+      orb.y  += orb.vy * ts;
+      orb.vy += 0.025 * ts;
+      orb.life -= ts;
+      if (orb.immune > 0) orb.immune -= ts;
 
       // Playable area bounds
       const topBound    = H * 0.30;
@@ -2579,13 +2609,20 @@ function drawWaveLabel() {
 }
 
 // ══════════════════════════════════════════════
-//  MAIN LOOP
+//  MAIN LOOP  (deltaTime-based)
 // ══════════════════════════════════════════════
-function loop() {
-  update();
+let lastTime = performance.now();
+
+function loop(now) {
+  const rawDt = (now - lastTime) / 1000;
+  lastTime = now;
+  const dt = Math.min(rawDt, 0.1);
+  const ts = dt * 60;
+
+  update(ts);
   draw();
   requestAnimationFrame(loop);
 }
 
 startLevel(0);
-loop();
+requestAnimationFrame(loop);
