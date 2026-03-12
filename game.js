@@ -247,6 +247,7 @@ function defaultState(levelIdx) {
     bullets: [],
     enemies: [],
     shootTimer: 0,
+    atkSpeedBuff: 0,     // frames remaining for 2x attack speed
     particles: [],
     soldiers: [],        // animated soldier positions (screen)
     gateFlash: null,     // { color, timer }
@@ -285,7 +286,7 @@ function startLevel(levelIdx) {
   const prevUnits = state.units || 0;
   const prevLevelHpBase = state.levelHpBase || 2;
   state = defaultState(levelIdx);
-  state.levelHpBase = levelIdx === 0 ? 2 : Math.round(prevLevelHpBase * 1.5);
+  state.levelHpBase = levelIdx === 0 ? 4 : Math.round(prevLevelHpBase * 1.5);
   state.squadX   = W / 2;
   state.squadY   = getEffectiveSquadY();
   state.comboMode = true;
@@ -295,7 +296,7 @@ function startLevel(levelIdx) {
     state.soldierColors = prevColors;
     state.soldierTraits = prevTraits;
   } else {
-    state.soldierColors = Array(state.units).fill('blue');
+    state.soldierColors = Array(state.units).fill('white');
     state.soldierTraits = Array(state.units).fill(null).map(() => defaultTrait());
   }
   state.relics = prevRelics;
@@ -348,6 +349,16 @@ function addUnit(color, trait) {
   state.units++;
   state.soldierColors.push(color);
   state.soldierTraits.push(trait || defaultTrait());
+}
+
+function convertOrAddUnit(color, trait) {
+  const idx = state.soldierColors.indexOf('white');
+  if (idx !== -1) {
+    state.soldierColors[idx] = color;
+    state.soldierTraits[idx] = trait || defaultTrait();
+  } else {
+    addUnit(color, trait);
+  }
 }
 
 function removeUnit() {
@@ -724,39 +735,49 @@ function triggerSlotSkill(color, count) {
         state.activeWall = null;
       }
     } else {
-      const killCount = Math.round(5 * decayMul);
-      let killed = 0;
-      for (let i = state.enemies.length - 1; i >= 0 && killed < killCount; i--) {
-        const pos = enemyScreenPos(state.enemies[i]);
-        spawnParticles(pos.x, pos.y, '#ff4444', 8);
-        state.enemies.splice(i, 1);
-        killed++;
+      const hitCount = Math.round(8 * decayMul);
+      const aoeDmg = 2;
+      let hits = 0;
+      for (let i = state.enemies.length - 1; i >= 0 && hits < hitCount; i--) {
+        const e = state.enemies[i];
+        const pos = enemyScreenPos(e);
+        e.hp = (e.hp || 1) - aoeDmg;
+        e.flashTimer = 8;
+        spawnParticles(pos.x, pos.y, '#ff4444', 6);
+        hits++;
+        if (e.hp <= 0) {
+          spawnParticles(pos.x, pos.y, '#ffcc44', 4);
+          state.enemies.splice(i, 1);
+        }
       }
+      if (hits > 0) spawnFloatingText(state.squadX, state.squadY - 80, `Blaze x${hits}!`, '#ff6644', 45);
     }
     const rSizeMul = hasRelic('red_core') ? 3 : 2;
     const rExplode = hasRelic('red_core') ? 0.2 : 0.1;
     for (let i = 0; i < spawnCount; i++) {
-      addUnit('red', {splitChance:0, explodeChance:rExplode, sizeMul:rSizeMul, laserChance:0});
+      convertOrAddUnit('red', {splitChance:0, explodeChance:rExplode, sizeMul:rSizeMul, laserChance:0});
     }
     updateHUD(); buildSoldiers();
     spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Giant!`, '#ff6666', 50);
   } else if (color === 'blue') {
-    const baseFreezeFrames = Math.round(120 * decayMul);
+    const baseFreezeFrames = Math.round(30 * decayMul);
     const freezeFrames = hasRelic('time_warp') ? baseFreezeFrames * 2 : baseFreezeFrames;
     state.freezeTimer = Math.max(state.freezeTimer || 0, freezeFrames);
     spawnParticles(W / 2, state.squadY - 60, '#66ccff', 12);
     for (let i = 0; i < spawnCount; i++) {
-      addUnit('blue', {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0.12});
+      convertOrAddUnit('blue', {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0.12});
     }
     updateHUD(); buildSoldiers();
     spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Laser!`, '#66aaff', 50);
   } else if (color === 'yellow') {
     const ySplit = hasRelic('barrage') ? 0.25 : 0.1;
     for (let i = 0; i < spawnCount; i++) {
-      addUnit('yellow', {splitChance:ySplit, explodeChance:0, sizeMul:1, laserChance:0});
+      convertOrAddUnit('yellow', {splitChance:ySplit, explodeChance:0, sizeMul:1, laserChance:0});
     }
+    state.atkSpeedBuff = 120;
     updateHUD(); buildSoldiers();
     spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Splitter!`, '#ffcc00', 50);
+    spawnFloatingText(state.squadX, state.squadY - 80, 'Rapid Fire 2s!', '#ffee44', 40);
   }
 }
 
@@ -1034,6 +1055,9 @@ function updateWorld(ts) {
     }
   }
 
+  // ── Attack speed buff decay ────────
+  if (state.atkSpeedBuff > 0) state.atkSpeedBuff = Math.max(0, state.atkSpeedBuff - ts);
+
   // ── Shooting (accumulator pattern) ────────
   state.shootTimer += ts;
   let effectiveShootInterval = hasRelic('speed_shot') ? SHOOT_INTERVAL * 0.70 : SHOOT_INTERVAL;
@@ -1042,6 +1066,7 @@ function updateWorld(ts) {
     const ratio = Math.max(0.5, state.units / maxU);
     effectiveShootInterval = Math.max(4, effectiveShootInterval * ratio);
   }
+  if (state.atkSpeedBuff > 0) effectiveShootInterval *= 0.5;
   const hasTargets = state.enemies.length > 0 || state.activeWall;
   if (state.shootTimer >= effectiveShootInterval && hasTargets) {
     state.shootTimer -= effectiveShootInterval;
@@ -1281,7 +1306,7 @@ function updateWorld(ts) {
         if (hasRelic('undying')) {
           state.relics.undying = false;
           state.units = 5;
-          state.soldierColors = ['blue','blue','blue','blue','blue'];
+          state.soldierColors = ['white','white','white','white','white'];
           state.soldierTraits = Array(5).fill(null).map(() => defaultTrait());
           state.freezeTimer = Math.max(state.freezeTimer || 0, hasRelic('time_warp') ? 360 : 180);
           spawnFloatingText(state.squadX, state.squadY - 50, 'Phoenix Revive!', '#ffaa00', 80);
@@ -2231,9 +2256,17 @@ function drawSquad() {
   const spacing = (UNIT_R * 2 + 3) * scale;
 
   // Selection circle under squad
+  const clusterR = (getClusterRadius(state.units) + 0.8) * spacing;
+  if (state.atkSpeedBuff > 0) {
+    const pulse = 0.4 + 0.3 * Math.sin(frameCount * 0.3);
+    ctx.strokeStyle = `rgba(255,220,50,${pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(squadSX, squadSY + UNIT_R * scale * 0.5, clusterR * 1.1, clusterR * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.strokeStyle = 'rgba(100,220,255,0.5)';
   ctx.lineWidth = 2;
-  const clusterR = (getClusterRadius(state.units) + 0.8) * spacing;
   ctx.beginPath();
   ctx.ellipse(squadSX, squadSY + UNIT_R * scale * 0.5, clusterR, clusterR * 0.35, 0, 0, Math.PI * 2);
   ctx.stroke();
@@ -2251,6 +2284,7 @@ const SOLDIER_PALETTE = {
   red:    { body: '#c02020', helmet: '#d43030', shadow: '#ff6666', highlight: 'rgba(255,120,120,0.25)', shine: 'rgba(255,180,180,0.3)' },
   blue:   { body: '#1565c0', helmet: '#1976d2', shadow: '#4fc3f7', highlight: 'rgba(100,180,255,0.2)',  shine: 'rgba(100,200,255,0.3)' },
   yellow: { body: '#b8860b', helmet: '#cc9a10', shadow: '#f7d34f', highlight: 'rgba(255,220,100,0.25)', shine: 'rgba(255,240,150,0.3)' },
+  white:  { body: '#cccccc', helmet: '#dddddd', shadow: '#ffffff', highlight: 'rgba(255,255,255,0.3)',  shine: 'rgba(255,255,255,0.4)' },
 };
 
 function drawSoldierFigure(x, y, scale, color, trait) {
