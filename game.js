@@ -532,7 +532,7 @@ function applyGate(side) {
   metrics.gateChoices++;
   state.gateFlash = { color, timer: 18 };
   const GATE_ORB_IMMUNE = 60;
-  const baseCount = Math.round(2 * state.waveHpMul);
+  const baseCount = Math.round(3 * state.waveHpMul);
   for (let i = 0; i < baseCount; i++) {
     const ox = (Math.random() - 0.5) * 50;
     const oy = -15 - Math.random() * 25;
@@ -1122,7 +1122,7 @@ function updateWorld(ts) {
         e.hp = (e.hp || 1) - bulletDmg;
         e.flashTimer = 6;
         spawnParticles(pos.x, pos.y, '#ff6b35', 4);
-        const dropRate = hasRelic('speed_shot') ? 0.28 : 0.15;
+        const dropRate = hasRelic('speed_shot') ? 0.14 : 0.075;
 
         if (e.hp <= 0) {
           spawnParticles(pos.x, pos.y, '#ffcc44', 4);
@@ -1386,7 +1386,7 @@ function fireLaser(x, y, dirX, dirY) {
 
   const LASER_HALF_W = hasRelic('overcharge') ? 27 : 18;
   const laserDmg = hasRelic('overcharge') ? 4 : 2;
-  const dropRate = hasRelic('speed_shot') ? 0.28 : 0.15;
+  const dropRate = hasRelic('speed_shot') ? 0.14 : 0.075;
   let refractTarget = null;
   for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
     const e = state.enemies[ei];
