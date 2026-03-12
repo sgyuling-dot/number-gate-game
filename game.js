@@ -103,57 +103,57 @@ const WALL_TIMEOUT_FRAMES = 600; // 10 seconds @60fps to break the wall
 const LEVELS = [
   // Level 1 — Tutorial (gentle)
   { rows:[
-    gateRow(), {type:'wave', count:16},
-    gateRow(), {type:'wave', count:20},
+    gateRow(), {type:'wave', count:6},
+    gateRow(), {type:'wave', count:8},
     wallRow(6),
-    gateRow(), {type:'wave', count:24},
-    gateRow(), {type:'wave', count:20},
+    gateRow(), {type:'wave', count:12},
+    gateRow(), {type:'wave', count:14},
     wallRow(10),
   ]},
   // Level 2 — Easy
   { rows:[
-    gateRow(), {type:'wave', count:24},
-    gateRow(), {type:'wave', count:32},
-    gateRow(), {type:'wave', count:36},
+    gateRow(), {type:'wave', count:10},
+    gateRow(), {type:'wave', count:16},
+    gateRow(), {type:'wave', count:22},
     wallRow(14),
+    gateRow(), {type:'wave', count:28},
     gateRow(), {type:'wave', count:36},
-    gateRow(), {type:'wave', count:44},
     wallRow(18),
   ]},
   // Level 3 — Medium
   { rows:[
-    gateRow(), {type:'wave', count:40},
-    gateRow(), {type:'wave', count:48},
-    gateRow(), {type:'wave', count:56},
+    gateRow(), {type:'wave', count:14},
+    gateRow(), {type:'wave', count:24},
+    gateRow(), {type:'wave', count:36},
     wallRow(20),
-    gateRow(), {type:'wave', count:56},
-    gateRow(), {type:'wave', count:64},
-    gateRow(), {type:'wave', count:64},
+    gateRow(), {type:'wave', count:48},
+    gateRow(), {type:'wave', count:60},
+    gateRow(), {type:'wave', count:72},
     wallRow(26),
   ]},
   // Level 4 — Hard
   { rows:[
-    gateRow(), {type:'wave', count:56},
-    gateRow(), {type:'wave', count:64},
-    gateRow(), {type:'wave', count:72},
+    gateRow(), {type:'wave', count:18},
+    gateRow(), {type:'wave', count:32},
+    gateRow(), {type:'wave', count:50},
     wallRow(26),
-    gateRow(), {type:'wave', count:72},
-    gateRow(), {type:'wave', count:80},
-    gateRow(), {type:'wave', count:88},
-    gateRow(), {type:'wave', count:96},
+    gateRow(), {type:'wave', count:68},
+    gateRow(), {type:'wave', count:86},
+    gateRow(), {type:'wave', count:100},
+    gateRow(), {type:'wave', count:120},
     wallRow(35),
   ]},
   // Level 5 — Boss (brutal)
   { rows:[
-    gateRow(), {type:'wave', count:72},
-    gateRow(), {type:'wave', count:80},
-    gateRow(), {type:'wave', count:88},
+    gateRow(), {type:'wave', count:20},
+    gateRow(), {type:'wave', count:40},
+    gateRow(), {type:'wave', count:64},
     wallRow(32),
-    gateRow(), {type:'wave', count:96},
-    gateRow(), {type:'wave', count:104},
-    gateRow(), {type:'wave', count:112},
-    gateRow(), {type:'wave', count:120},
-    gateRow(), {type:'wave', count:128},
+    gateRow(), {type:'wave', count:88},
+    gateRow(), {type:'wave', count:110},
+    gateRow(), {type:'wave', count:130},
+    gateRow(), {type:'wave', count:150},
+    gateRow(), {type:'wave', count:180},
     wallRow(50),
   ]},
 ];
@@ -177,7 +177,7 @@ const ENEMY_ADVANCE     = 0.9;   // px/frame
 const GATE_H_WORLD      = 110;   // gate height in world units
 const GATE_PASS_ZONE    = 30;    // px tolerance for gate passage
 let   MAX_UNITS         = 20;
-const ENEMY_CONVERGE    = 0.15;  // px/frame drift toward squad X
+const ENEMY_CONVERGE    = 0.075; // px/frame drift toward squad X (halved)
 
 // ── 7-slot queue constants ──────────────────
 const SLOT_COUNT  = 7;
@@ -323,19 +323,24 @@ function buildSoldiers() {
   const scale   = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
 
+  const oldTimers = {};
+  for (const s of state.soldiers) {
+    if (s._id !== undefined) oldTimers[s._id] = s.shotTimer || 0;
+  }
   state.soldiers = [];
   if (n === 0) return;
 
-  // Place in concentric rings
   const positions = circleFormation(n);
   for (let i = 0; i < n; i++) {
     const trait = state.soldierTraits[i] || {splitChance:0, explodeChance:0, sizeMul:1};
     state.soldiers.push({
+      _id: i,
       ox: positions[i].x,
       oy: positions[i].y,
-      color: state.soldierColors[i] || 'blue',
+      color: state.soldierColors[i] || 'white',
       bobPhase: Math.random() * Math.PI * 2,
       trait,
+      shotTimer: oldTimers[i] !== undefined ? oldTimers[i] : Math.random() * SHOOT_INTERVAL,
     });
   }
 }
@@ -753,7 +758,7 @@ function triggerSlotSkill(color, count) {
       if (hits > 0) spawnFloatingText(state.squadX, state.squadY - 80, `Blaze x${hits}!`, '#ff6644', 45);
     }
     const rSizeMul = hasRelic('red_core') ? 3 : 2;
-    const rExplode = hasRelic('red_core') ? 0.2 : 0.1;
+    const rExplode = hasRelic('red_core') ? 0.10 : 0.05;
     for (let i = 0; i < spawnCount; i++) {
       convertOrAddUnit('red', {splitChance:0, explodeChance:rExplode, sizeMul:rSizeMul, laserChance:0});
     }
@@ -765,12 +770,12 @@ function triggerSlotSkill(color, count) {
     state.freezeTimer = Math.max(state.freezeTimer || 0, freezeFrames);
     spawnParticles(W / 2, state.squadY - 60, '#66ccff', 12);
     for (let i = 0; i < spawnCount; i++) {
-      convertOrAddUnit('blue', {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0.12});
+      convertOrAddUnit('blue', {splitChance:0, explodeChance:0, sizeMul:1, laserChance:0.06});
     }
     updateHUD(); buildSoldiers();
     spawnFloatingText(state.squadX, state.squadY - 60, `+${spawnCount} Laser!`, '#66aaff', 50);
   } else if (color === 'yellow') {
-    const ySplit = hasRelic('barrage') ? 0.25 : 0.1;
+    const ySplit = hasRelic('barrage') ? 0.12 : 0.05;
     for (let i = 0; i < spawnCount; i++) {
       convertOrAddUnit('yellow', {splitChance:ySplit, explodeChance:0, sizeMul:1, laserChance:0});
     }
@@ -1002,7 +1007,9 @@ function updateWorld(ts) {
 
   // Pause scrolling while a wall is active; otherwise scroll
   if (!state.activeWall) {
-    state.scrollY += SCROLL_SPEED * ts;
+    const scrollDelta = SCROLL_SPEED * ts;
+    state.scrollY += scrollDelta;
+    for (const e of state.enemies) e.waveScrollPos += scrollDelta * 0.5;
   } else {
     state.activeWall.timer -= ts;
     if (state.activeWall.timer <= 0) {
@@ -1058,8 +1065,7 @@ function updateWorld(ts) {
   // ── Attack speed buff decay ────────
   if (state.atkSpeedBuff > 0) state.atkSpeedBuff = Math.max(0, state.atkSpeedBuff - ts);
 
-  // ── Shooting (accumulator pattern) ────────
-  state.shootTimer += ts;
+  // ── Per-soldier shooting ────────
   let effectiveShootInterval = hasRelic('speed_shot') ? SHOOT_INTERVAL * 0.70 : SHOOT_INTERVAL;
   if (hasRelic('berserker')) {
     const maxU = getMaxUnits();
@@ -1068,9 +1074,14 @@ function updateWorld(ts) {
   }
   if (state.atkSpeedBuff > 0) effectiveShootInterval *= 0.5;
   const hasTargets = state.enemies.length > 0 || state.activeWall;
-  if (state.shootTimer >= effectiveShootInterval && hasTargets) {
-    state.shootTimer -= effectiveShootInterval;
-    fireFromSquad();
+  if (hasTargets) {
+    for (const sol of state.soldiers) {
+      sol.shotTimer = (sol.shotTimer || 0) + ts;
+      if (sol.shotTimer >= effectiveShootInterval) {
+        sol.shotTimer -= effectiveShootInterval;
+        fireSoldier(sol, effectiveShootInterval);
+      }
+    }
   }
 
   // ── Move bullets ──────────────────────────
@@ -1488,8 +1499,8 @@ function fireLaser(x, y, dirX, dirY) {
   }
 }
 
-// ── Fire ────────────────────────────────────
-function fireFromSquad() {
+// ── Fire single soldier ──────────────────────
+function fireSoldier(sol) {
   const hasEnemies = state.enemies.length > 0;
   const hasWall = !!state.activeWall;
   if (!hasEnemies && !hasWall) return;
@@ -1499,59 +1510,53 @@ function fireFromSquad() {
   const scale = scaleAtY(squadSY);
   const spacing = (UNIT_R * 2 + 3) * scale;
 
-  const enemyPositions = hasEnemies ? state.enemies.map(e => enemyScreenPos(e)) : [];
-  let wallTarget = null;
-  if (hasWall) {
-    const ws = wallScreenPos(state.activeWall);
-    wallTarget = { x: ws.x + (Math.random() - 0.5) * ws.roadHalf * 0.6, y: ws.top };
-  }
+  const sx = squadSX + sol.ox * spacing;
+  const sy = squadSY + sol.oy * spacing;
 
-  for (const sol of state.soldiers) {
-    const sx = squadSX + sol.ox * spacing;
-    const sy = squadSY + sol.oy * spacing;
+  let target = null;
+  let nearestD = Infinity;
 
-    let target = null;
-    let nearestD = Infinity;
-
-    for (let i = 0; i < enemyPositions.length; i++) {
-      const ep = enemyPositions[i];
+  if (hasEnemies) {
+    for (const e of state.enemies) {
+      const ep = enemyScreenPos(e);
       const dx = ep.x - sx, dy = ep.y - sy;
       const d = dx*dx + dy*dy;
       if (d < nearestD) { nearestD = d; target = ep; }
     }
+  }
 
-    // If wall is active and closer (or no enemies), target the wall
-    if (wallTarget) {
-      const dx = wallTarget.x - sx, dy = wallTarget.y - sy;
-      const wd = dx*dx + dy*dy;
-      if (!target || wd < nearestD) target = wallTarget;
-    }
+  if (hasWall) {
+    const ws = wallScreenPos(state.activeWall);
+    const wallTarget = { x: ws.x + (Math.random() - 0.5) * ws.roadHalf * 0.6, y: ws.top };
+    const dx = wallTarget.x - sx, dy = wallTarget.y - sy;
+    const wd = dx*dx + dy*dy;
+    if (!target || wd < nearestD) target = wallTarget;
+  }
 
-    if (!target) continue;
-    const dx = target.x - sx, dy = target.y - sy;
-    const len = Math.sqrt(dx*dx + dy*dy);
-    const bSpd = hasRelic('sniper') ? BULLET_SPEED * 1.6 : BULLET_SPEED;
-    const bvx = dx/len * bSpd;
-    const bvy = dy/len * bSpd;
-    const trait = sol.trait || defaultTrait();
+  if (!target) return;
+  const dx = target.x - sx, dy = target.y - sy;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const bSpd = hasRelic('sniper') ? BULLET_SPEED * 1.6 : BULLET_SPEED;
+  const bvx = dx/len * bSpd;
+  const bvy = dy/len * bSpd;
+  const trait = sol.trait || defaultTrait();
 
-    if (trait.laserChance > 0 && Math.random() < trait.laserChance) {
-      fireLaser(sx, sy - UNIT_R * scale, dx / len, dy / len);
-    } else {
-      state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
-        explodeChance: trait.explodeChance, splitChance: trait.splitChance });
+  if (trait.laserChance > 0 && Math.random() < trait.laserChance) {
+    fireLaser(sx, sy - UNIT_R * scale, dx / len, dy / len);
+  }
 
-      if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
-        const splitAngles = hasRelic('barrage')
-          ? [-0.35, -0.23, -0.12, 0.12, 0.23, 0.35]
-          : [-0.25, -0.08, 0.08, 0.25];
-        for (const a of splitAngles) {
-          const ca = Math.cos(a), sa = Math.sin(a);
-          state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
-            vx: bvx * ca - bvy * sa, vy: bvx * sa + bvy * ca,
-            explodeChance: 0, splitChance: 0 });
-        }
-      }
+  state.bullets.push({ x: sx, y: sy - UNIT_R * scale, vx: bvx, vy: bvy,
+    explodeChance: trait.explodeChance, splitChance: 0 });
+
+  if (trait.splitChance > 0 && Math.random() < trait.splitChance) {
+    const splitAngles = hasRelic('barrage')
+      ? [-0.35, -0.23, -0.12, 0.12, 0.23, 0.35]
+      : [-0.25, -0.08, 0.08, 0.25];
+    for (const a of splitAngles) {
+      const ca = Math.cos(a), sa = Math.sin(a);
+      state.bullets.push({ x: sx, y: sy - UNIT_R * scale,
+        vx: bvx * ca - bvy * sa, vy: bvx * sa + bvy * ca,
+        explodeChance: 0, splitChance: 0 });
     }
   }
 }
@@ -2276,7 +2281,7 @@ function drawSquad() {
     const bob = Math.sin(frameCount * 0.12 + sol.bobPhase) * 1.5 * scale;
     const sx = squadSX + sol.ox * spacing;
     const sy = squadSY + sol.oy * spacing + bob;
-    drawSoldierFigure(sx, sy, scale, sol.color, sol.trait);
+    drawSoldierFigure(sx, sy, scale, sol.color, sol.trait, sol.shotTimer);
   }
 }
 
@@ -2287,7 +2292,7 @@ const SOLDIER_PALETTE = {
   white:  { body: '#cccccc', helmet: '#dddddd', shadow: '#ffffff', highlight: 'rgba(255,255,255,0.3)',  shine: 'rgba(255,255,255,0.4)' },
 };
 
-function drawSoldierFigure(x, y, scale, color, trait) {
+function drawSoldierFigure(x, y, scale, color, trait, shotTimer) {
   const t = trait || defaultTrait();
   const sm = t.sizeMul || 1;
   const br = UNIT_R * scale * sm;
@@ -2351,8 +2356,9 @@ function drawSoldierFigure(x, y, scale, color, trait) {
   }
 
   // Muzzle flash (pulsing)
-  if (state.shootTimer < 6 && (state.enemies.length > 0 || state.activeWall)) {
-    const flashAlpha = 1 - state.shootTimer / 6;
+  const st = shotTimer !== undefined ? shotTimer : 999;
+  if (st < 6 && (state.enemies.length > 0 || state.activeWall)) {
+    const flashAlpha = 1 - st / 6;
     ctx.fillStyle = `rgba(255,230,100,${flashAlpha * 0.9})`;
     ctx.shadowColor = '#ffe066';
     ctx.shadowBlur = 10 * flashAlpha;
